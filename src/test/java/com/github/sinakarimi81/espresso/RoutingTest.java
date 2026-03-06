@@ -5,7 +5,7 @@ import com.github.sinakarimi81.espresso.handler.Handler;
 import com.github.sinakarimi81.espresso.routing.MethodTree;
 import com.github.sinakarimi81.espresso.routing.MethodTrees;
 import com.github.sinakarimi81.espresso.routing.PathNode;
-import com.github.sinakarimi81.espresso.util.HttpMethods;
+import com.github.sinakarimi81.espresso.http.HttpMethods;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
@@ -178,10 +178,9 @@ public class RoutingTest {
     @Test
     public void getHandler_throwsExceptionWhenRootHasNoHandler() {
         MethodTrees trees = new MethodTrees();
-        trees.add(HttpMethods.GET);
 
         MethodTree getRoot = trees.get(HttpMethods.GET);
-        getRoot.addRoute("/", null);
+        trees.addRoute(HttpMethods.GET, "/", null);
 
         Assertions.assertThrows(PathNotFoundException.class, () -> getRoot.getHandlerForPath("/"));
     }
@@ -189,7 +188,7 @@ public class RoutingTest {
     @Test
     public void getHandler_multiLevelTree_throwsExceptionWhenHasNoHandler() {
         MethodTrees trees = new MethodTrees();
-        trees.add(HttpMethods.GET);
+        trees.addRoute(HttpMethods.GET, "/", null);
 
         MethodTree getRoot = trees.get(HttpMethods.GET);
         getRoot.addRoute("/", System.out::println);
