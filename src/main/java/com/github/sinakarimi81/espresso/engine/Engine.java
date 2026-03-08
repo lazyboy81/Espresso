@@ -2,10 +2,13 @@ package com.github.sinakarimi81.espresso.engine;
 
 import com.github.sinakarimi81.espresso.exception.PathNotFoundException;
 import com.github.sinakarimi81.espresso.handler.Handler;
-import com.github.sinakarimi81.espresso.parsing.Parser;
+import com.github.sinakarimi81.espresso.http.Headers;
+import com.github.sinakarimi81.espresso.parsing.ParsingUtils;
 import com.github.sinakarimi81.espresso.routing.RoutingGroup;
 import com.github.sinakarimi81.espresso.routing.RoutingGroups;
 import com.github.sinakarimi81.espresso.util.Tuple;
+
+import java.io.BufferedReader;
 
 public class Engine {
 
@@ -31,9 +34,9 @@ public class Engine {
     }
 
     public Handler getHandlerForEndpoint(String url) {
-        Parser.validateHttpVersion(url);
+        ParsingUtils.validateHttpVersion(url);
 
-        Tuple<String, String> methodAndPath = Parser.getMethodAndPath(url);
+        Tuple<String, String> methodAndPath = ParsingUtils.getMethodAndPath(url);
         RoutingGroup group = groups.getGroup(methodAndPath.left());
 
         if (group == null) {
@@ -41,6 +44,10 @@ public class Engine {
         }
 
         return group.getHandlerForPath(methodAndPath.right());
+    }
+
+    public Headers createHeaders(BufferedReader reader) {
+        return ParsingUtils.createHeaders(reader);
     }
 
 }

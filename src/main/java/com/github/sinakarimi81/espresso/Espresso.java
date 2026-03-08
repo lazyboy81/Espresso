@@ -2,6 +2,7 @@ package com.github.sinakarimi81.espresso;
 
 import com.github.sinakarimi81.espresso.engine.Engine;
 import com.github.sinakarimi81.espresso.handler.Handler;
+import com.github.sinakarimi81.espresso.http.Headers;
 import com.github.sinakarimi81.espresso.routing.RouteDefinition;
 
 import javax.net.ServerSocketFactory;
@@ -68,6 +69,7 @@ public class Espresso {
 
             String url = bufferedReader.readLine();
             Handler handlerForEndpoint = engine.getHandlerForEndpoint(url);
+            Headers headers = engine.createHeaders(bufferedReader);
 
         } catch (Exception e) {
             throw new RuntimeException("error in handling request/response", e);

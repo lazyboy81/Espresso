@@ -1,11 +1,14 @@
 package com.github.sinakarimi81.espresso.parsing;
 
 import com.github.sinakarimi81.espresso.exception.VersionNotSupportedException;
+import com.github.sinakarimi81.espresso.http.Headers;
 import com.github.sinakarimi81.espresso.util.Tuple;
 
+import java.io.BufferedReader;
+import java.io.IOException;
 import java.util.List;
 
-public class Parser {
+public class ParsingUtils {
 
     private static final List<String> VERSION = List.of("HTTP/1.1");
 
@@ -20,6 +23,22 @@ public class Parser {
     public static Tuple<String, String> getMethodAndPath(String url) {
         String[] split = url.split(" ");
         return Tuple.of(split[0], split[1]);
+    }
+
+    public static Headers createHeaders(BufferedReader reader) {
+        try {
+            Headers result = new Headers();
+
+            String read;
+            while (!(read = reader.readLine()).isBlank()) {
+                String[] headerKeyValue = read.split(": ");
+                result.addHeader(headerKeyValue[0], headerKeyValue[1]);
+            }
+
+            return result;
+        } catch (Exception e) {
+            throw new RuntimeException("failed to parse request headers", e);
+        }
     }
 
 }

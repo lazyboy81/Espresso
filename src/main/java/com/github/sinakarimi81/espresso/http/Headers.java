@@ -19,4 +19,8 @@ public class Headers {
         return headers.get(name);
     }
 
+    public Map<String, String> getAll() {
+        return new HashMap<>(headers);
+    }
+
 }
