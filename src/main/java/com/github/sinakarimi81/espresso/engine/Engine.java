@@ -3,29 +3,44 @@ package com.github.sinakarimi81.espresso.engine;
 import com.github.sinakarimi81.espresso.exception.PathNotFoundException;
 import com.github.sinakarimi81.espresso.handler.Handler;
 import com.github.sinakarimi81.espresso.parsing.Parser;
-import com.github.sinakarimi81.espresso.routing.MethodTree;
-import com.github.sinakarimi81.espresso.routing.MethodTrees;
+import com.github.sinakarimi81.espresso.routing.RoutingGroup;
+import com.github.sinakarimi81.espresso.routing.RoutingGroups;
 import com.github.sinakarimi81.espresso.util.Tuple;
 
 public class Engine {
 
-    private final MethodTrees trees;
+    private static Engine INSTANCE;
 
-    public Engine(MethodTrees methodTrees) {
-        trees = methodTrees;
+    public static Engine getInstance() {
+        if (INSTANCE == null) {
+            synchronized (Engine.class) {
+                if (INSTANCE == null) {
+                    RoutingGroups routingGroups = RoutingGroups.getInstance();
+                    INSTANCE = new Engine(routingGroups);
+                }
+            }
+        }
+
+        return INSTANCE;
+    }
+
+    private final RoutingGroups groups;
+
+    private Engine(RoutingGroups routingGroups) {
+        groups = routingGroups;
     }
 
     public Handler getHandlerForEndpoint(String url) {
         Parser.validateHttpVersion(url);
 
         Tuple<String, String> methodAndPath = Parser.getMethodAndPath(url);
-        MethodTree methodTree = trees.get(methodAndPath.left());
+        RoutingGroup group = groups.getGroup(methodAndPath.left());
 
-        if (methodTree == null) {
+        if (group == null) {
             throw new PathNotFoundException(String.format("no mapping for given url was found: %s", url), url);
         }
 
-        return methodTree.getHandlerForPath(methodAndPath.right());
+        return group.getHandlerForPath(methodAndPath.right());
     }
 
 }

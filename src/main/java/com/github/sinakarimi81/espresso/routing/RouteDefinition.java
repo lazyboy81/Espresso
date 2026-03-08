@@ -1,30 +1,45 @@
 package com.github.sinakarimi81.espresso.routing;
 
 import com.github.sinakarimi81.espresso.handler.Handler;
-import com.github.sinakarimi81.espresso.http.HttpMethods;
+import com.github.sinakarimi81.espresso.http.MethodConstants;
 
 public class RouteDefinition {
 
-    private final MethodTrees trees;
+    private static RouteDefinition INSTANCE;
 
-    public RouteDefinition(MethodTrees methodTrees) {
-        trees = methodTrees;
+    public static RouteDefinition getInstance() {
+        if (INSTANCE == null) {
+            synchronized (RouteDefinition.class) {
+                if (INSTANCE == null) {
+                    RoutingGroups routingGroups = RoutingGroups.getInstance();
+                    INSTANCE = new RouteDefinition(routingGroups);
+                }
+            }
+        }
+
+        return INSTANCE;
+    }
+
+    private final RoutingGroups groups;
+
+    private RouteDefinition(RoutingGroups routingGroups) {
+        groups = routingGroups;
     }
 
     public void get(String path, Handler handler) {
-        trees.addRoute(HttpMethods.GET, path, handler);
+        groups.addRoute(MethodConstants.GET_METHOD, path, handler);
     }
 
     public void post(String path, Handler handler) {
-        trees.addRoute(HttpMethods.POST, path, handler);
+        groups.addRoute(MethodConstants.POST_METHOD, path, handler);
     }
 
     public void put(String path, Handler handler) {
-        trees.addRoute(HttpMethods.PUT, path, handler);
+        groups.addRoute(MethodConstants.PUT_METHOD, path, handler);
     }
 
     public void delete(String path, Handler handler) {
-        trees.addRoute(HttpMethods.DELETE, path, handler);
+        groups.addRoute(MethodConstants.DELETE_METHOD, path, handler);
     }
 
 

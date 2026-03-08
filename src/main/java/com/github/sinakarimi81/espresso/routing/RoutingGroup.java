@@ -15,7 +15,7 @@ import java.util.List;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public class MethodTree {
+public class RoutingGroup {
 
     private String method;
     private PathNode root;

@@ -2,10 +2,7 @@ package com.github.sinakarimi81.espresso;
 
 import com.github.sinakarimi81.espresso.engine.Engine;
 import com.github.sinakarimi81.espresso.handler.Handler;
-import com.github.sinakarimi81.espresso.management.ObjectManager;
-import com.github.sinakarimi81.espresso.parsing.Parser;
 import com.github.sinakarimi81.espresso.routing.RouteDefinition;
-import com.github.sinakarimi81.espresso.util.Tuple;
 
 import javax.net.ServerSocketFactory;
 import java.io.*;
@@ -46,8 +43,8 @@ public class Espresso {
 
     private Espresso(int port) throws IOException {
         serverSocket = ServerSocketFactory.getDefault().createServerSocket(port);
-        engine = ObjectManager.getInstance().engine();
-        routeDefinition = ObjectManager.getInstance().routeDefinition();
+        engine = Engine.getInstance();
+        routeDefinition = RouteDefinition.getInstance();
     }
 
     public RouteDefinition routeDefinition() {
@@ -72,17 +69,6 @@ public class Espresso {
             String url = bufferedReader.readLine();
             Handler handlerForEndpoint = engine.getHandlerForEndpoint(url);
 
-//            List<String> headers = new ArrayList<>();
-//            String headerLine;
-//            do {
-//                headerLine = bufferedReader.readLine();
-//                headers.add(headerLine);
-//            } while (!headerLine.isBlank());
-//
-//            StringBuilder payload = new StringBuilder();
-//            bufferedReader.lines().forEach(payload::append);
-//
-//            Context context = ContextManager.createContext();
         } catch (Exception e) {
             throw new RuntimeException("error in handling request/response", e);
         }

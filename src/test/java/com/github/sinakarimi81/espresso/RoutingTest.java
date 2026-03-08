@@ -2,208 +2,136 @@ package com.github.sinakarimi81.espresso;
 
 import com.github.sinakarimi81.espresso.exception.PathNotFoundException;
 import com.github.sinakarimi81.espresso.handler.Handler;
-import com.github.sinakarimi81.espresso.routing.MethodTree;
-import com.github.sinakarimi81.espresso.routing.MethodTrees;
+import com.github.sinakarimi81.espresso.http.MethodConstants;
 import com.github.sinakarimi81.espresso.routing.PathNode;
-import com.github.sinakarimi81.espresso.http.HttpMethods;
+import com.github.sinakarimi81.espresso.routing.RoutingGroup;
+import com.github.sinakarimi81.espresso.routing.RoutingGroups;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class RoutingTest {
 
     @Test
     public void addNewRootRoute() {
-        MethodTrees trees = new MethodTrees();
-        trees.add(HttpMethods.GET);
+        RoutingGroups groups = RoutingGroups.getInstance();
 
-        trees.get(HttpMethods.GET).addRoute("/", context -> {
-            System.out.println(String.valueOf(context));
-        });
-        PathNode root = trees.get(HttpMethods.GET).getRoot();
+        groups.addRoute(MethodConstants.GET_METHOD, "/", System.out::println);
+        PathNode root = groups.getGroup(MethodConstants.GET_METHOD).getRoot();
         assertThat(root.getChildren()).isEmpty();
         assertThat(root.getHandler()).isNotNull();
     }
 
     @Test
     public void addNewRoute() {
-        MethodTrees trees = new MethodTrees();
-        trees.add(HttpMethods.GET);
+        RoutingGroups groups = RoutingGroups.getInstance();
 
-        MethodTree getRoot = trees.get(HttpMethods.GET);
-        getRoot.addRoute("/", context -> {
-            System.out.println(String.valueOf(context));
-        });
+        groups.addRoute(MethodConstants.GET_METHOD, "/", System.out::println);
+        groups.addRoute(MethodConstants.GET_METHOD, "/events", context -> System.out.println("/events route"));
+        groups.addRoute(MethodConstants.GET_METHOD, "/add", context -> System.out.println("/add route"));
 
-        getRoot.addRoute("/events", context -> {
-            System.out.println("/events route");
-        });
-
-        getRoot.addRoute("/add", context -> {
-            System.out.println("/add route");
-        });
-
-        assertThat(getRoot.getRoot().getChildren()).hasSize(2);
+        assertThat(groups.getGroup(MethodConstants.GET_METHOD).getRoot().getChildren()).hasSize(2);
     }
 
     @Test
     public void addNewRouteToChild() {
-        MethodTrees trees = new MethodTrees();
-        trees.add(HttpMethods.GET);
+        RoutingGroups groups = RoutingGroups.getInstance();
 
-        MethodTree getRoot = trees.get(HttpMethods.GET);
-        getRoot.addRoute("/", context -> {
-            System.out.println(String.valueOf(context));
-        });
+        groups.addRoute(MethodConstants.GET_METHOD, "/", System.out::println);
+        groups.addRoute(MethodConstants.GET_METHOD, "/events", context -> System.out.println("/events route"));
+        groups.addRoute(MethodConstants.GET_METHOD, "/add", context -> System.out.println("/add route"));
+        groups.addRoute(MethodConstants.GET_METHOD, "/events/status", context -> System.out.println("/events/status route"));
 
-        getRoot.addRoute("/events", context -> {
-            System.out.println("/events route");
-        });
-
-        getRoot.addRoute("/add", context -> {
-            System.out.println("/add route");
-        });
-
-        getRoot.addRoute("/events/status", context -> {
-            System.out.println("/events/status route");
-        });
-
-        List<PathNode> children = getRoot.getRoot().getChildren();
+        List<PathNode> children = groups.getGroup(MethodConstants.GET_METHOD).getRoot().getChildren();
         assertThat(children).hasSize(2);
         assertThat(children).extracting(PathNode::getChildren).extracting(List::size).contains(1, 0);
     }
 
     @Test
     public void addNewRouteToChildChild() {
-        MethodTrees trees = new MethodTrees();
-        trees.add(HttpMethods.GET);
+        RoutingGroups groups = RoutingGroups.getInstance();
 
-        MethodTree getRoot = trees.get(HttpMethods.GET);
-        getRoot.addRoute("/", context -> {
-            System.out.println(String.valueOf(context));
-        });
+        groups.addRoute(MethodConstants.GET_METHOD,"/", System.out::println);
+        groups.addRoute(MethodConstants.GET_METHOD,"/events", context -> System.out.println("/events route"));
+        groups.addRoute(MethodConstants.GET_METHOD,"/add", context -> System.out.println("/add route"));
+        groups.addRoute(MethodConstants.GET_METHOD,"/add/id", context -> System.out.println("/add/id route"));
+        groups.addRoute(MethodConstants.GET_METHOD,"/events/status", context -> System.out.println("/events/status route"));
+        groups.addRoute(MethodConstants.GET_METHOD,"/events/id", context -> System.out.println("/events/id route"));
 
-        getRoot.addRoute("/events", context -> {
-            System.out.println("/events route");
-        });
-
-        getRoot.addRoute("/add", context -> {
-            System.out.println("/add route");
-        });
-
-        getRoot.addRoute("/add/id", context -> {
-            System.out.println("/add/id route");
-        });
-
-        getRoot.addRoute("/events/status", context -> {
-            System.out.println("/events/status route");
-        });
-
-        getRoot.addRoute("/events/id", context -> {
-            System.out.println("/events/id route");
-        });
-
-        List<PathNode> children = getRoot.getRoot().getChildren();
+        List<PathNode> children = groups.getGroup(MethodConstants.GET_METHOD).getRoot().getChildren();
         assertThat(children).hasSize(2);
         assertThat(children).extracting(PathNode::getChildren).extracting(List::size).contains(2, 1);
     }
 
     @Test
     public void addNewRouteToRoot() {
-        MethodTrees trees = new MethodTrees();
-        trees.add(HttpMethods.GET);
+        RoutingGroups groups = RoutingGroups.getInstance();
 
-        MethodTree getMethodRoot = trees.get(HttpMethods.GET);
-        getMethodRoot.addRoute("/", System.out::println);
+        groups.addRoute(MethodConstants.GET_METHOD, "/", System.out::println);
+        groups.addRoute(MethodConstants.GET_METHOD, "/events", context -> System.out.println("/events route"));
+        groups.addRoute(MethodConstants.GET_METHOD, "/add", context -> System.out.println("/add route"));
+        groups.addRoute(MethodConstants.GET_METHOD, "/add/id", context -> System.out.println("/add/id route"));
+        groups.addRoute(MethodConstants.GET_METHOD, "/events/status", context -> System.out.println("/events/status route"));
+        groups.addRoute(MethodConstants.GET_METHOD, "/events/id", context -> System.out.println("/events/id route"));
+        groups.addRoute(MethodConstants.GET_METHOD, "/remove", context -> System.out.println("/remove route"));
 
-        getMethodRoot.addRoute("/events", context -> System.out.println("/events route"));
-
-        getMethodRoot.addRoute("/add", context -> System.out.println("/add route"));
-
-        getMethodRoot.addRoute("/add/id", context -> System.out.println("/add/id route"));
-
-        getMethodRoot.addRoute("/events/status", context -> System.out.println("/events/status route"));
-
-        getMethodRoot.addRoute("/events/id", context -> System.out.println("/events/id route"));
-
-        getMethodRoot.addRoute("/remove", context -> System.out.println("/remove route"));
-
-        List<PathNode> children = getMethodRoot.getRoot().getChildren();
+        List<PathNode> children = groups.getGroup(MethodConstants.GET_METHOD).getRoot().getChildren();
         assertThat(children).hasSize(3);
         assertThat(children).extracting(PathNode::getChildren).extracting(List::size).contains(2, 1, 0);
     }
 
     @Test
     public void getHandlerForRoot() {
-        MethodTrees trees = new MethodTrees();
-        trees.add(HttpMethods.GET);
+        RoutingGroups groups = RoutingGroups.getInstance();
 
-        MethodTree getRoot = trees.get(HttpMethods.GET);
         Handler handler = System.out::println;
-        getRoot.addRoute("/", handler);
+        groups.addRoute(MethodConstants.GET_METHOD, "/", handler);
 
-        Handler handlerForPath = getRoot.getHandlerForPath("/");
+        Handler handlerForPath = groups.getGroup(MethodConstants.GET_METHOD).getHandlerForPath("/");
         assertThat(handlerForPath).isEqualTo(handler);
     }
 
     @Test
     public void getHandler_multiLevelTree() {
-        MethodTrees trees = new MethodTrees();
-        trees.add(HttpMethods.GET);
+        RoutingGroups groups = RoutingGroups.getInstance();
 
-        MethodTree getRoot = trees.get(HttpMethods.GET);
-        getRoot.addRoute("/", System.out::println);
-
-        getRoot.addRoute("/events", context -> System.out.println("/events route"));
-
-        getRoot.addRoute("/add", context -> System.out.println("/add route"));
-
-        getRoot.addRoute("/add/id", context -> System.out.println("/add/id route"));
-
+        groups.addRoute(MethodConstants.GET_METHOD, "/", System.out::println);
+        groups.addRoute(MethodConstants.GET_METHOD, "/events", context -> System.out.println("/events route"));
+        groups.addRoute(MethodConstants.GET_METHOD, "/add", context -> System.out.println("/add route"));
+        groups.addRoute(MethodConstants.GET_METHOD, "/add/id", context -> System.out.println("/add/id route"));
         Handler eventsStatusHandler = context -> System.out.println("/events/status route");
-        getRoot.addRoute("/events/status", eventsStatusHandler);
+        groups.addRoute(MethodConstants.GET_METHOD, "/events/status", eventsStatusHandler);
+        groups.addRoute(MethodConstants.GET_METHOD, "/events/id", context -> System.out.println("/events/id route"));
+        groups.addRoute(MethodConstants.GET_METHOD, "/remove", context -> System.out.println("/remove route"));
 
-        getRoot.addRoute("/events/id", context -> System.out.println("/events/id route"));
-
-        getRoot.addRoute("/remove", context -> System.out.println("/remove route"));
-
-        Handler handlerForPath = getRoot.getHandlerForPath("/events/status");
+        Handler handlerForPath = groups.getGroup(MethodConstants.GET_METHOD).getHandlerForPath("/events/status");
         assertThat(handlerForPath).isNotNull().isEqualTo(eventsStatusHandler).isInstanceOf(Handler.class);
     }
 
     @Test
-    public void getHandler_throwsExceptionWhenRootHasNoHandler() {
-        MethodTrees trees = new MethodTrees();
-
-        MethodTree getRoot = trees.get(HttpMethods.GET);
-        trees.addRoute(HttpMethods.GET, "/", null);
-
-        Assertions.assertThrows(PathNotFoundException.class, () -> getRoot.getHandlerForPath("/"));
+    public void getHandler_throwsExceptionWhenNoHandlerIsGiven() {
+        RoutingGroups groups = RoutingGroups.getInstance();
+        Assertions.assertThrows(IllegalArgumentException.class, () -> groups.addRoute(MethodConstants.GET_METHOD, "/", null));
     }
 
     @Test
     public void getHandler_multiLevelTree_throwsExceptionWhenHasNoHandler() {
-        MethodTrees trees = new MethodTrees();
-        trees.addRoute(HttpMethods.GET, "/", null);
+        RoutingGroups groups = RoutingGroups.getInstance();
+        groups.addRoute(MethodConstants.GET_METHOD, "/", System.out::println);
 
-        MethodTree getRoot = trees.get(HttpMethods.GET);
+        RoutingGroup getRoot = groups.getGroup(MethodConstants.GET_METHOD);
         getRoot.addRoute("/", System.out::println);
-
         getRoot.addRoute("/events", context -> System.out.println("/events route"));
-
         getRoot.addRoute("/add", context -> System.out.println("/add route"));
-
         getRoot.addRoute("/add/id", context -> System.out.println("/add/id route"));
 
         Handler eventsStatusHandler = context -> System.out.println("/events/status route");
         getRoot.addRoute("/events/status", eventsStatusHandler);
 
         getRoot.addRoute("/events/id", context -> System.out.println("/events/id route"));
-
         getRoot.addRoute("/remove", context -> System.out.println("/remove route"));
 
         Assertions.assertThrows(PathNotFoundException.class, () -> getRoot.getHandlerForPath("/values"));
