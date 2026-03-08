@@ -1,8 +1,10 @@
 package com.github.sinakarimi81.espresso;
 
+import com.github.sinakarimi81.espresso.context.Context;
 import com.github.sinakarimi81.espresso.engine.Engine;
 import com.github.sinakarimi81.espresso.handler.Handler;
 import com.github.sinakarimi81.espresso.http.Headers;
+import com.github.sinakarimi81.espresso.parsing.ParsingUtils;
 import com.github.sinakarimi81.espresso.routing.RouteDefinition;
 
 import javax.net.ServerSocketFactory;
@@ -64,12 +66,16 @@ public class Espresso {
     }
 
     private void handleSocket(Socket acceptedSocket) {
-        try (var bufferedReader = new BufferedReader(new InputStreamReader(acceptedSocket.getInputStream()));
-             var bufferedWriter = new BufferedWriter(new OutputStreamWriter(acceptedSocket.getOutputStream()))) {
+        try (var reader = new BufferedReader(new InputStreamReader(acceptedSocket.getInputStream()));
+             var writer = acceptedSocket.getOutputStream()) {
 
-            String url = bufferedReader.readLine();
-            Handler handlerForEndpoint = engine.getHandlerForEndpoint(url);
-            Headers headers = engine.createHeaders(bufferedReader);
+            Handler handlerForEndpoint = engine.getHandlerForEndpoint(reader);
+
+            Headers headers = engine.createHeaders(reader);
+
+            Context context = engine.createContext(headers, ParsingUtils.getPayload(reader), writer);
+
+            handlerForEndpoint.handle(context);
 
         } catch (Exception e) {
             throw new RuntimeException("error in handling request/response", e);

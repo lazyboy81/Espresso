@@ -1,6 +1,12 @@
 package com.github.sinakarimi81.espresso.context;
 
+import lombok.AllArgsConstructor;
+
 import java.io.OutputStream;
 
-public record Response(OutputStream outputStream) {
+@AllArgsConstructor
+public class Response {
+
+    private OutputStream outputStream;
+
 }

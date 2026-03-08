@@ -41,4 +41,19 @@ public class ParsingUtils {
         }
     }
 
+    public static String getPayload(BufferedReader reader) {
+        try {
+            var result = new StringBuilder();
+
+            String read;
+            while ((read = reader.readLine()) != null) {
+                result.append(read).append("\r\n");
+            }
+
+            return result.toString();
+        } catch (Exception e) {
+            throw new RuntimeException("failed to parse request headers", e);
+        }
+    }
+
 }
