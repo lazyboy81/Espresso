@@ -1,7 +1,8 @@
 package com.github.sinakarimi81.espresso.routing;
 
+import com.github.sinakarimi81.espresso.exception.PathNotFoundException;
 import com.github.sinakarimi81.espresso.handler.Handler;
-import com.github.sinakarimi81.espresso.http.MethodConstants;
+import com.github.sinakarimi81.espresso.http.HttpMethod;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -30,7 +31,7 @@ public class RoutingGroups {
     }
 
     public void addRoute(String method, String path, Handler handler) {
-        if (MethodConstants.doesNotContain(method)) {
+        if (HttpMethod.doesNotContain(method)) {
             throw new IllegalArgumentException(String.format("method %s is not supported in espresso", method));
         }
 
@@ -49,6 +50,15 @@ public class RoutingGroups {
         }
 
         root.addRoute(path, handler);
+    }
+
+    public Handler getHandlerForPath(String method, String path) {
+        RoutingGroup routingGroup = groups.get(method);
+        if (routingGroup == null) {
+            throw new PathNotFoundException(String.format("No path/handler defined for %s %s", method, path), path);
+        }
+
+        return routingGroup.getHandlerForPath(path);
     }
 
     public RoutingGroup getGroup(String name) {

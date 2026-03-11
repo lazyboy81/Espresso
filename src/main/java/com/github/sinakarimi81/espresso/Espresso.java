@@ -1,16 +1,14 @@
 package com.github.sinakarimi81.espresso;
 
-import com.github.sinakarimi81.espresso.context.Context;
 import com.github.sinakarimi81.espresso.engine.Engine;
 import com.github.sinakarimi81.espresso.handler.Handler;
-import com.github.sinakarimi81.espresso.http.Headers;
-import com.github.sinakarimi81.espresso.parsing.ParsingUtils;
-import com.github.sinakarimi81.espresso.routing.RouteDefinition;
+import com.github.sinakarimi81.espresso.http.HttpMethod;
+import com.github.sinakarimi81.espresso.routing.RoutingGroups;
 
-import javax.net.ServerSocketFactory;
-import java.io.*;
-import java.net.ServerSocket;
-import java.net.Socket;
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.nio.channels.ServerSocketChannel;
+import java.nio.channels.SocketChannel;
 import java.util.concurrent.Executors;
 
 public class Espresso {
@@ -18,8 +16,8 @@ public class Espresso {
     private static Espresso INSTANCE = null;
 
     private static final int DEFAULT_PORT = 8080;
-    private final ServerSocket serverSocket;
-    private final RouteDefinition routeDefinition;
+    private final ServerSocketChannel serverSocket;
+    private final RoutingGroups groups;
     private final Engine engine;
 
     public static Espresso getDefault() {
@@ -45,41 +43,45 @@ public class Espresso {
     }
 
     private Espresso(int port) throws IOException {
-        serverSocket = ServerSocketFactory.getDefault().createServerSocket(port);
+        serverSocket = ServerSocketChannel.open();
+        serverSocket.bind(new InetSocketAddress(port));
         engine = Engine.getInstance();
-        routeDefinition = RouteDefinition.getInstance();
-    }
-
-    public RouteDefinition routeDefinition() {
-        return routeDefinition;
+        groups = RoutingGroups.getInstance();
     }
 
     public void start() {
         try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
             while (true) {
-                Socket acceptedSocket = serverSocket.accept();
-                executor.submit(() -> handleSocket(acceptedSocket));
+                SocketChannel accepted = serverSocket.accept();
+                executor.submit(() -> engine.handleAcceptedSocketChannel(accepted));
             }
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
 
-    private void handleSocket(Socket acceptedSocket) {
-        try (var reader = new BufferedReader(new InputStreamReader(acceptedSocket.getInputStream()));
-             var writer = acceptedSocket.getOutputStream()) {
+    public void options(String path, Handler handler) {
+        groups.addRoute(HttpMethod.OPTIONS_METHOD, path, handler);
+    }
 
-            Handler handlerForEndpoint = engine.getHandlerForEndpoint(reader);
+    public void head(String path, Handler handler) {
+        groups.addRoute(HttpMethod.HEAD_METHOD, path, handler);
+    }
 
-            Headers headers = engine.createHeaders(reader);
+    public void get(String path, Handler handler) {
+        groups.addRoute(HttpMethod.GET_METHOD, path, handler);
+    }
 
-            Context context = engine.createContext(headers, ParsingUtils.getPayload(reader), writer);
+    public void post(String path, Handler handler) {
+        groups.addRoute(HttpMethod.POST_METHOD, path, handler);
+    }
 
-            handlerForEndpoint.handle(context);
+    public void put(String path, Handler handler) {
+        groups.addRoute(HttpMethod.PUT_METHOD, path, handler);
+    }
 
-        } catch (Exception e) {
-            throw new RuntimeException("error in handling request/response", e);
-        }
+    public void delete(String path, Handler handler) {
+        groups.addRoute(HttpMethod.DELETE_METHOD, path, handler);
     }
 
 }
