@@ -7,6 +7,7 @@ import com.github.sinakarimi81.espresso.exception.PathNotFoundException;
 import com.github.sinakarimi81.espresso.exception.VersionNotSupportedException;
 import com.github.sinakarimi81.espresso.handler.Handler;
 import com.github.sinakarimi81.espresso.http.Headers;
+import com.github.sinakarimi81.espresso.http.HttpMethod;
 import com.github.sinakarimi81.espresso.http.HttpStatus;
 import com.github.sinakarimi81.espresso.routing.RoutingGroups;
 import com.github.sinakarimi81.espresso.util.DateTimeUtil;
@@ -46,22 +47,60 @@ public class Engine {
         groups = routingGroups;
     }
 
+    public void options(String path, Handler handler) {
+        groups.addRoute(HttpMethod.OPTIONS_METHOD, path, handler);
+    }
+
+    public void head(String path, Handler handler) {
+        groups.addRoute(HttpMethod.HEAD_METHOD, path, handler);
+    }
+
+    public void get(String path, Handler handler) {
+        groups.addRoute(HttpMethod.GET_METHOD, path, handler);
+    }
+
+    public void post(String path, Handler handler) {
+        groups.addRoute(HttpMethod.POST_METHOD, path, handler);
+    }
+
+    public void put(String path, Handler handler) {
+        groups.addRoute(HttpMethod.PUT_METHOD, path, handler);
+    }
+
+    public void delete(String path, Handler handler) {
+        groups.addRoute(HttpMethod.DELETE_METHOD, path, handler);
+    }
+
     public void handleAcceptedSocketChannel(SocketChannel channel) {
         Context context = null;
         try {
-            ByteBuffer buffer = ByteBuffer.allocate(8192); // start with 8 KB
-            StringBuilder requestBuilder = new StringBuilder();
+            while (channel.isConnected() && channel.isOpen()) {
+                ByteBuffer buffer = ByteBuffer.allocate(8192); // start with 8 KB
+                StringBuilder requestBuilder = new StringBuilder();
 
-            getPathAndHeadersFromChannel(channel, buffer, requestBuilder);
-            var methodAndPathTuple = parseUrlFromRequest(requestBuilder);
-            var parsedHeaders = parseHeaders(requestBuilder);
-            var body = parseRequestBody(channel, buffer, parsedHeaders, requestBuilder);
+                getPathAndHeadersFromChannel(channel, buffer, requestBuilder);
+                if (!buffer.hasRemaining() || requestBuilder.isEmpty()) {
+                    buffer.clear();
+                    continue;
+                }
 
-            var request = new Request(parsedHeaders, body);
-            var response = new Response(channel);
-            context = new Context(request, response);
+                var methodAndPathTuple = parseUrlFromRequest(requestBuilder);
+                var parsedHeaders = parseHeaders(requestBuilder);
+                var body = parseRequestBody(channel, buffer, parsedHeaders, requestBuilder);
 
-            findHandlerAndPassTheContext(methodAndPathTuple.left(), methodAndPathTuple.right(), context);
+                var request = new Request(parsedHeaders, body);
+                var response = new Response(channel, methodAndPathTuple.left());
+                context = new Context(request, response);
+
+                findHandlerAndPassTheContext(methodAndPathTuple.left(), methodAndPathTuple.right(), context);
+
+                boolean shouldCloseConnection = shouldCloseConnection(parsedHeaders);
+
+                if (shouldCloseConnection) {
+                    channel.close();
+                    break;
+                }
+            }
         } catch (Exception e) {
             log.error("an exception occurred while handling the accepted socket", e);
             parseAndSendErrors(e, context.response());
@@ -69,7 +108,7 @@ public class Engine {
     }
 
     private void getPathAndHeadersFromChannel(SocketChannel channel, ByteBuffer buffer, StringBuilder requestBuilder) throws IOException {
-        while (channel.read(buffer) > 0) {
+        while (channel.isConnected() && channel.isOpen() && channel.read(buffer) > 0) {
             buffer.flip();
             byte[] data = new byte[buffer.remaining()];
             buffer.get(data);
@@ -141,6 +180,11 @@ public class Engine {
     private void findHandlerAndPassTheContext(String method, String path, Context context) {
         Handler handlerForPath = groups.getHandlerForPath(method, path);
         handlerForPath.handle(context);
+    }
+
+    private static boolean shouldCloseConnection(Headers parsedHeaders) {
+        return parsedHeaders.containsHeader("Connection") &&
+                (!parsedHeaders.getHeader("Connection").contains("keep-alive") || parsedHeaders.getHeader("Connection").contains("close"));
     }
 
     private void parseAndSendErrors(Exception e, Response response) {

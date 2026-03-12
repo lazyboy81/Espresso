@@ -14,10 +14,12 @@ import java.util.Map;
 public class Response {
 
     private final SocketChannel channel;
+    private final String requestMethod;
     private final Map<String, String> responseHeaders;
 
-    public Response(SocketChannel channel) {
+    public Response(SocketChannel channel, String method) {
         this.channel = channel;
+        this.requestMethod = method;
         responseHeaders = new HashMap<>();
     }
 
@@ -44,7 +46,7 @@ public class Response {
      * @param payload the data that should be written to JSON body
      */
     public void json(HttpStatus status, Map<String, Object> payload) {
-        String jsonify = Bindings.json().jsonify(status, responseHeaders, payload);
+        String jsonify = Bindings.json().jsonify(requestMethod, status, responseHeaders, payload);
         try {
             ByteBuffer src = ByteBuffer.wrap(jsonify.getBytes(StandardCharsets.UTF_8));
             channel.write(src);
@@ -60,7 +62,7 @@ public class Response {
      * @param status  the HTTP status of the given response see {@link HttpStatus}
      */
     public void json(HttpStatus status) {
-        String jsonify = Bindings.json().jsonify(status, responseHeaders, Map.of());
+        String jsonify = Bindings.json().jsonify(requestMethod, status, responseHeaders, Map.of());
         try {
             ByteBuffer src = ByteBuffer.wrap(jsonify.getBytes(StandardCharsets.UTF_8));
             channel.write(src);

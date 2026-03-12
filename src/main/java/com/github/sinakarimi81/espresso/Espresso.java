@@ -2,8 +2,6 @@ package com.github.sinakarimi81.espresso;
 
 import com.github.sinakarimi81.espresso.engine.Engine;
 import com.github.sinakarimi81.espresso.handler.Handler;
-import com.github.sinakarimi81.espresso.http.HttpMethod;
-import com.github.sinakarimi81.espresso.routing.RoutingGroups;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -17,7 +15,6 @@ public class Espresso {
 
     private static final int DEFAULT_PORT = 8080;
     private final ServerSocketChannel serverSocket;
-    private final RoutingGroups groups;
     private final Engine engine;
 
     public static Espresso getDefault() {
@@ -46,7 +43,6 @@ public class Espresso {
         serverSocket = ServerSocketChannel.open();
         serverSocket.bind(new InetSocketAddress(port));
         engine = Engine.getInstance();
-        groups = RoutingGroups.getInstance();
     }
 
     public void start() {
@@ -61,27 +57,27 @@ public class Espresso {
     }
 
     public void options(String path, Handler handler) {
-        groups.addRoute(HttpMethod.OPTIONS_METHOD, path, handler);
+        engine.options(path, handler);
     }
 
     public void head(String path, Handler handler) {
-        groups.addRoute(HttpMethod.HEAD_METHOD, path, handler);
+        engine.head(path, handler);
     }
 
     public void get(String path, Handler handler) {
-        groups.addRoute(HttpMethod.GET_METHOD, path, handler);
+        engine.get(path, handler);
     }
 
     public void post(String path, Handler handler) {
-        groups.addRoute(HttpMethod.POST_METHOD, path, handler);
+        engine.post(path, handler);
     }
 
     public void put(String path, Handler handler) {
-        groups.addRoute(HttpMethod.PUT_METHOD, path, handler);
+        engine.put(path, handler);
     }
 
     public void delete(String path, Handler handler) {
-        groups.addRoute(HttpMethod.DELETE_METHOD, path, handler);
+        engine.delete(path, handler);
     }
 
 }

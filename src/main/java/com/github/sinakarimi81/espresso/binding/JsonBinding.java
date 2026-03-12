@@ -1,6 +1,7 @@
 package com.github.sinakarimi81.espresso.binding;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.sinakarimi81.espresso.http.HttpMethod;
 import com.github.sinakarimi81.espresso.http.HttpStatus;
 import com.github.sinakarimi81.espresso.http.HttpVersion;
 import com.github.sinakarimi81.espresso.util.DateTimeUtil;
@@ -23,13 +24,15 @@ public class JsonBinding {
         }
     }
 
-    public String jsonify(HttpStatus status, Map<String, String> responseHeaders, Map<String, Object> payload) {
+    public String jsonify(String requestMethod, HttpStatus status, Map<String, String> responseHeaders, Map<String, Object> payload) {
         StringBuilder responseMessage = new StringBuilder();
 
         String content = convertPayloadToJsonString(payload);
         appendStatusLine(responseMessage, status);
         appendHeaders(responseMessage, responseHeaders, content.isBlank() ? -1 : content.getBytes(StandardCharsets.UTF_8).length);
-        appendPayload(responseMessage, content);
+        if (!HttpMethod.HEAD_METHOD.equals(requestMethod) || status != HttpStatus.NO_CONTENT) {
+            appendPayload(responseMessage, content);
+        }
 
         return responseMessage.toString();
     }
