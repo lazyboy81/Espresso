@@ -4,17 +4,12 @@ import com.github.sinakarimi81.espresso.engine.Engine;
 import com.github.sinakarimi81.espresso.handler.Handler;
 
 import java.io.IOException;
-import java.net.InetSocketAddress;
-import java.nio.channels.ServerSocketChannel;
-import java.nio.channels.SocketChannel;
-import java.util.concurrent.Executors;
 
 public class Espresso {
 
     private static Espresso INSTANCE = null;
 
     private static final int DEFAULT_PORT = 8080;
-    private final ServerSocketChannel serverSocket;
     private final Engine engine;
 
     public static Espresso getDefault() {
@@ -40,17 +35,12 @@ public class Espresso {
     }
 
     private Espresso(int port) throws IOException {
-        serverSocket = ServerSocketChannel.open();
-        serverSocket.bind(new InetSocketAddress(port));
-        engine = Engine.getInstance();
+        engine = Engine.getInstance(port);
     }
 
     public void start() {
-        try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
-            while (true) {
-                SocketChannel accepted = serverSocket.accept();
-                executor.submit(() -> engine.handleAcceptedSocketChannel(accepted));
-            }
+        try {
+            engine.start();
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

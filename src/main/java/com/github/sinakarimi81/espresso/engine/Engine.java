@@ -15,11 +15,16 @@ import com.github.sinakarimi81.espresso.util.Tuple;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
+import java.nio.channels.SelectionKey;
+import java.nio.channels.Selector;
+import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Map;
+import java.util.concurrent.Executors;
 
 import static com.github.sinakarimi81.espresso.http.HttpVersion.SUPPORTED_VERSIONS;
 
@@ -28,12 +33,12 @@ public class Engine {
 
     private static Engine INSTANCE;
 
-    public static Engine getInstance() {
+    public static Engine getInstance(int port) throws IOException {
         if (INSTANCE == null) {
             synchronized (Engine.class) {
                 if (INSTANCE == null) {
                     RoutingGroups routingGroups = RoutingGroups.getInstance();
-                    INSTANCE = new Engine(routingGroups);
+                    INSTANCE = new Engine(port, routingGroups);
                 }
             }
         }
@@ -41,10 +46,17 @@ public class Engine {
         return INSTANCE;
     }
 
+    private final ServerSocketChannel serverSocketChannel;
+    private final Selector selector;
     private final RoutingGroups groups;
 
-    private Engine(RoutingGroups routingGroups) {
+    private Engine(int port, RoutingGroups routingGroups) throws IOException {
         groups = routingGroups;
+        serverSocketChannel = ServerSocketChannel.open();
+        serverSocketChannel.bind(new InetSocketAddress(port));
+        serverSocketChannel.configureBlocking(false);
+        selector = Selector.open();
+        serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
     }
 
     public void options(String path, Handler handler) {
@@ -71,36 +83,57 @@ public class Engine {
         groups.addRoute(HttpMethod.DELETE_METHOD, path, handler);
     }
 
+    public void start() {
+        while (serverSocketChannel.isOpen() && selector.isOpen()) {
+            try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+                selector.select(1000);
+                for (SelectionKey selectedKey : selector.selectedKeys()) {
+                    if (selectedKey.isValid() && selectedKey.isAcceptable()) {
+                        ServerSocketChannel serverSocket = (ServerSocketChannel) selectedKey.channel();
+                        SocketChannel accepted = serverSocket.accept();
+                        if (accepted != null) {
+                            accepted.configureBlocking(false);
+                            accepted.register(selector, SelectionKey.OP_READ);
+                        }
+                    } else if (selectedKey.isValid() && selectedKey.isReadable()) {
+                        SocketChannel channel = (SocketChannel) selectedKey.channel();
+                        executor.submit(()-> handleAcceptedSocketChannel(channel));
+                    }
+                }
+            } catch (Exception e) {
+                log.error("exception occurred", e);
+            }
+        }
+    }
+
+    public void stop() throws IOException {
+        selector.close();
+        serverSocketChannel.close();
+    }
+
     public void handleAcceptedSocketChannel(SocketChannel channel) {
         Context context = null;
         try {
-            while (channel.isConnected() && channel.isOpen()) {
-                ByteBuffer buffer = ByteBuffer.allocate(8192); // start with 8 KB
-                StringBuilder requestBuilder = new StringBuilder();
+            ByteBuffer buffer = ByteBuffer.allocate(4096); // start with 4 KB
+            StringBuilder requestBuilder = new StringBuilder();
 
-                getPathAndHeadersFromChannel(channel, buffer, requestBuilder);
-                if (!buffer.hasRemaining() || requestBuilder.isEmpty()) {
-                    buffer.clear();
-                    continue;
-                }
-
-                var methodAndPathTuple = parseUrlFromRequest(requestBuilder);
-                var parsedHeaders = parseHeaders(requestBuilder);
-                var body = parseRequestBody(channel, buffer, parsedHeaders, requestBuilder);
-
-                var request = new Request(parsedHeaders, body);
-                var response = new Response(channel, methodAndPathTuple.left());
-                context = new Context(request, response);
-
-                findHandlerAndPassTheContext(methodAndPathTuple.left(), methodAndPathTuple.right(), context);
-
-                boolean shouldCloseConnection = shouldCloseConnection(parsedHeaders);
-
-                if (shouldCloseConnection) {
-                    channel.close();
-                    break;
-                }
+            getPathAndHeadersFromChannel(channel, buffer, requestBuilder);
+            if (requestBuilder.isEmpty()) {
+                buffer.clear();
+                channel.close();
+                return;
             }
+
+            var methodAndPathTuple = parseUrlFromRequest(requestBuilder);
+            var parsedHeaders = parseHeaders(requestBuilder);
+            var body = parseRequestBody(channel, buffer, parsedHeaders, requestBuilder);
+
+            var request = new Request(parsedHeaders, body);
+            var response = new Response(channel, methodAndPathTuple.left());
+            context = new Context(request, response);
+
+            findHandlerAndPassTheContext(methodAndPathTuple.left(), methodAndPathTuple.right(), context);
+            channel.register(selector, SelectionKey.OP_READ);
         } catch (Exception e) {
             log.error("an exception occurred while handling the accepted socket", e);
             parseAndSendErrors(e, context.response());
@@ -108,7 +141,7 @@ public class Engine {
     }
 
     private void getPathAndHeadersFromChannel(SocketChannel channel, ByteBuffer buffer, StringBuilder requestBuilder) throws IOException {
-        while (channel.isConnected() && channel.isOpen() && channel.read(buffer) > 0) {
+        while (channel.read(buffer) > 0) {
             buffer.flip();
             byte[] data = new byte[buffer.remaining()];
             buffer.get(data);
@@ -171,7 +204,9 @@ public class Engine {
             }
 
             // now full body
-            return requestBuilder.toString();
+            String body = requestBuilder.toString();
+            requestBuilder.delete(0, requestBuilder.length());
+            return body;
         } else {
             return "";
         }
@@ -180,11 +215,6 @@ public class Engine {
     private void findHandlerAndPassTheContext(String method, String path, Context context) {
         Handler handlerForPath = groups.getHandlerForPath(method, path);
         handlerForPath.handle(context);
-    }
-
-    private static boolean shouldCloseConnection(Headers parsedHeaders) {
-        return parsedHeaders.containsHeader("Connection") &&
-                (!parsedHeaders.getHeader("Connection").contains("keep-alive") || parsedHeaders.getHeader("Connection").contains("close"));
     }
 
     private void parseAndSendErrors(Exception e, Response response) {
@@ -216,5 +246,4 @@ public class Engine {
             );
         }
     }
-
 }

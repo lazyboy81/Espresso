@@ -2,6 +2,7 @@ package com.github.sinakarimi81.espresso;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.sinakarimi81.espresso.dto.Item;
+import com.github.sinakarimi81.espresso.engine.Engine;
 import com.github.sinakarimi81.espresso.http.HttpStatus;
 import org.junit.jupiter.api.Test;
 
@@ -24,10 +25,11 @@ public class IntegrationTests {
         List<Item> items = List.of(new Item(1L, "create server", "create an http server"));
 
         Espresso espresso = Espresso.getDefault();
+        Engine engine = Engine.getInstance(8080);
+
         espresso.get("/list", context -> context.response().json(HttpStatus.OK, Map.of("items", items)));
 
-
-        try (var executor = Executors.newVirtualThreadPerTaskExecutor();
+        try (var executor = Executors.newCachedThreadPool();
              var client = HttpClient.newHttpClient()) {
             executor.submit(espresso::start);
 
@@ -37,7 +39,9 @@ public class IntegrationTests {
                     .uri(URI.create("http://localhost:8080/list"))
                     .build();
             HttpResponse<String> result = client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            client.shutdownNow();
             executor.shutdownNow();
+            engine.stop();
             assertThat(result.statusCode()).isEqualTo(HttpStatus.OK.code());
             assertThat(result.headers().map()).containsKeys("Date", "Keep-Alive", "Connection", "Content-Type", "Content-Length");
             assertThat(result.body()).isNotNull().isNotBlank();
@@ -49,6 +53,7 @@ public class IntegrationTests {
         List<Item> items = List.of(new Item(1L, "create server", "create an http server"));
 
         Espresso espresso = Espresso.getDefault();
+        Engine engine = Engine.getInstance(8080);
         espresso.head("/list", context -> context.response().json(HttpStatus.OK, Map.of("items", items)));
 
 
@@ -63,6 +68,7 @@ public class IntegrationTests {
                     .build();
             HttpResponse<Void> result = client.send(request, HttpResponse.BodyHandlers.discarding());
             executor.shutdownNow();
+            engine.stop();
             assertThat(result.statusCode()).isEqualTo(HttpStatus.OK.code());
             assertThat(result.headers().map()).containsKeys("Date", "Keep-Alive", "Connection", "Content-Type", "Content-Length");
             assertThat(result.body()).isNull();
@@ -75,6 +81,7 @@ public class IntegrationTests {
         List<Item> items = new ArrayList<>();
 
         Espresso espresso = Espresso.getDefault();
+        Engine engine = Engine.getInstance(8080);
         espresso.post("/add", context -> {
             Item item = context.request().json(Item.class);
             items.add(item);
@@ -94,6 +101,7 @@ public class IntegrationTests {
                     .build();
             HttpResponse<String> result = client.send(request, HttpResponse.BodyHandlers.ofString());
             executor.shutdownNow();
+            engine.stop();
             assertThat(result.statusCode()).isEqualTo(HttpStatus.CREATED.code());
             assertThat(result.headers().map()).containsKeys("Date", "Keep-Alive", "Connection", "Content-Type", "Content-Length");
             assertThat(items).isNotEmpty().contains(input);
@@ -106,6 +114,8 @@ public class IntegrationTests {
         List<Item> items = new ArrayList<>();
 
         Espresso espresso = Espresso.getDefault();
+        Engine engine = Engine.getInstance(8080);
+
         espresso.post("/add", context -> {
             Item item = context.request().json(Item.class);
             items.add(item);
@@ -125,6 +135,7 @@ public class IntegrationTests {
                     .build();
             HttpResponse<Void> result = client.send(request, HttpResponse.BodyHandlers.discarding());
             executor.shutdownNow();
+            engine.stop();
             assertThat(result.statusCode()).isEqualTo(HttpStatus.NO_CONTENT.code());
             assertThat(result.headers().map()).containsKeys("Date", "Keep-Alive", "Connection");
             assertThat(items).isNotEmpty().contains(input);
@@ -138,6 +149,7 @@ public class IntegrationTests {
         items.add(new Item(1L, "create server", "create an http server"));
 
         Espresso espresso = Espresso.getDefault();
+        Engine engine = Engine.getInstance(8080);
 
         espresso.get("/list", context -> context.response().json(HttpStatus.OK, Map.of("items", items)));
 
@@ -175,6 +187,7 @@ public class IntegrationTests {
 
             client.close();
             executor.shutdownNow();
+            engine.stop();
         } catch (Exception e) {
             System.out.println(e);
         }
