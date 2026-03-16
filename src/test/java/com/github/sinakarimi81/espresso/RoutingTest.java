@@ -1,5 +1,6 @@
 package com.github.sinakarimi81.espresso;
 
+import com.github.sinakarimi81.espresso.engine.Engine;
 import com.github.sinakarimi81.espresso.exception.PathNotFoundException;
 import com.github.sinakarimi81.espresso.handler.Handler;
 import com.github.sinakarimi81.espresso.http.HttpMethod;
@@ -9,6 +10,7 @@ import com.github.sinakarimi81.espresso.routing.RoutingGroups;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -135,6 +137,19 @@ public class RoutingTest {
         getRoot.addRoute("/remove", context -> System.out.println("/remove route"));
 
         Assertions.assertThrows(PathNotFoundException.class, () -> getRoot.getHandlerForPath("/values"));
+    }
+
+    @Test
+    public void addPathForAllMethods() throws IOException {
+        Engine engine = Engine.getInstance(8080);
+        RoutingGroups groups = RoutingGroups.getInstance();
+
+        engine.any("/test", System.out::println);
+
+        for (String method : HttpMethod.METHODS) {
+            Handler handlerForPath = groups.getHandlerForPath(method, "/test");
+            assertThat(handlerForPath).isNotNull();
+        }
     }
 
 }

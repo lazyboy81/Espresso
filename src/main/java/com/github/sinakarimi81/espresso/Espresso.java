@@ -70,4 +70,8 @@ public class Espresso {
         engine.delete(path, handler);
     }
 
+    public void any(String path, Handler handler) {
+        engine.any(path, handler);
+    }
+
 }

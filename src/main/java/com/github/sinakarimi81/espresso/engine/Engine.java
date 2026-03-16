@@ -83,6 +83,12 @@ public class Engine {
         groups.addRoute(HttpMethod.DELETE_METHOD, path, handler);
     }
 
+    public void any(String path, Handler handler) {
+        for (String method : HttpMethod.METHODS) {
+            groups.addRoute(method, path, handler);
+        }
+    }
+
     public void start() {
         while (serverSocketChannel.isOpen() && selector.isOpen()) {
             try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
@@ -106,6 +112,10 @@ public class Engine {
         }
     }
 
+    /**
+     * utility method for stopping the engine loop. used in tests to shut down working threads
+     * @throws IOException if an exception occurs during resource closure
+     */
     public void stop() throws IOException {
         selector.close();
         serverSocketChannel.close();

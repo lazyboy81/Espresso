@@ -11,7 +11,7 @@ public class HttpMethod {
     public static final String PUT_METHOD = "PUT";
     public static final String DELETE_METHOD = "DELETE";
 
-    private static final List<String> METHODS = List.of(
+    public static final List<String> METHODS = List.of(
             OPTIONS_METHOD, HEAD_METHOD, GET_METHOD,
             POST_METHOD, PUT_METHOD, DELETE_METHOD
     );
