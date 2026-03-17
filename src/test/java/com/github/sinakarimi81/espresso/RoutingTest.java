@@ -1,7 +1,6 @@
 package com.github.sinakarimi81.espresso;
 
 import com.github.sinakarimi81.espresso.engine.Engine;
-import com.github.sinakarimi81.espresso.exception.PathNotFoundException;
 import com.github.sinakarimi81.espresso.handler.Handler;
 import com.github.sinakarimi81.espresso.http.HttpMethod;
 import com.github.sinakarimi81.espresso.routing.PathNode;
@@ -136,7 +135,8 @@ public class RoutingTest {
         getRoot.addRoute("/events/id", context -> System.out.println("/events/id route"));
         getRoot.addRoute("/remove", context -> System.out.println("/remove route"));
 
-        Assertions.assertThrows(PathNotFoundException.class, () -> getRoot.getHandlerForPath("/values"));
+        Handler notFoundHandler = getRoot.getHandlerForPath("/values");
+        assertThat(notFoundHandler).isNotNull();
     }
 
     @Test

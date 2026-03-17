@@ -1,6 +1,8 @@
 package com.github.sinakarimi81.espresso.http;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -8,7 +10,7 @@ import java.util.Map;
  */
 public class Headers {
 
-    private final Map<String, String> headers;
+    private final Map<String, List<String>> headers;
 
     public Headers() {
         headers = new HashMap<>();
@@ -19,14 +21,23 @@ public class Headers {
     }
 
     public void addHeader(String name, String value) {
-        headers.put(name, value);
+        if (containsHeader(name)) {
+            List<String> strings = headers.get(name);
+            strings.add(value);
+            headers.put(name, strings);
+        } else {
+            var strings = new ArrayList<String>();
+            strings.add(value);
+            headers.put(name, strings);
+        }
+
     }
 
-    public String getHeader(String name) {
+    public List<String> getHeader(String name) {
         return headers.get(name);
     }
 
-    public Map<String, String> getAll() {
+    public Map<String, List<String>> getAll() {
         return new HashMap<>(headers);
     }
 

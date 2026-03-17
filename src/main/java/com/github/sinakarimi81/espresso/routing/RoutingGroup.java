@@ -1,15 +1,18 @@
 package com.github.sinakarimi81.espresso.routing;
 
-import com.github.sinakarimi81.espresso.exception.PathNotFoundException;
 import com.github.sinakarimi81.espresso.handler.Handler;
+import com.github.sinakarimi81.espresso.http.HttpStatus;
 import com.github.sinakarimi81.espresso.util.Container;
+import com.github.sinakarimi81.espresso.util.DateTimeUtil;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 @Getter
 @Setter
@@ -74,7 +77,12 @@ public class RoutingGroup {
             return container.getContainee();
         }
 
-        throw new PathNotFoundException("given path was not found", fullPath);
+        return context -> context.response().json(HttpStatus.NOT_FOUND, Map.of(
+                "timestamp", DateTimeUtil.rfc1123DateFormat(Instant.now()),
+                "status", HttpStatus.NOT_FOUND.code(),
+                "error", HttpStatus.NOT_FOUND.description(),
+                "path", String.format("%s %s", method, fullPath)
+        ));
     }
 
     private void traverseTree(PathNode root, String fullPath, Container<Handler> container) {

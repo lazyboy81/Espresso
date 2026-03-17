@@ -51,7 +51,7 @@ public class Response {
             ByteBuffer src = ByteBuffer.wrap(jsonify.getBytes(StandardCharsets.UTF_8));
             channel.write(src);
         } catch (Exception e) {
-            log.error("failed to send write a response", e);
+            log.error("failed to send a response", e);
         }
     }
 
@@ -67,7 +67,7 @@ public class Response {
             ByteBuffer src = ByteBuffer.wrap(jsonify.getBytes(StandardCharsets.UTF_8));
             channel.write(src);
         } catch (Exception e) {
-            log.error("failed to send write a response", e);
+            log.error("failed to write a response", e);
         }
     }
 

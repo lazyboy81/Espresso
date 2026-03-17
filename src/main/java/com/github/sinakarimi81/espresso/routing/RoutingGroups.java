@@ -1,9 +1,11 @@
 package com.github.sinakarimi81.espresso.routing;
 
-import com.github.sinakarimi81.espresso.exception.PathNotFoundException;
 import com.github.sinakarimi81.espresso.handler.Handler;
 import com.github.sinakarimi81.espresso.http.HttpMethod;
+import com.github.sinakarimi81.espresso.http.HttpStatus;
+import com.github.sinakarimi81.espresso.util.DateTimeUtil;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
@@ -55,7 +57,12 @@ public class RoutingGroups {
     public Handler getHandlerForPath(String method, String path) {
         RoutingGroup routingGroup = groups.get(method);
         if (routingGroup == null) {
-            throw new PathNotFoundException(String.format("No path/handler defined for %s %s", method, path), path);
+            return context -> context.response().json(HttpStatus.NOT_FOUND, Map.of(
+                    "timestamp", DateTimeUtil.rfc1123DateFormat(Instant.now()),
+                    "status", HttpStatus.NOT_FOUND.code(),
+                    "error", HttpStatus.NOT_FOUND.description(),
+                    "path", String.format("%s %s", method, path)
+            ));
         }
 
         return routingGroup.getHandlerForPath(path);

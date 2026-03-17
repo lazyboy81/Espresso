@@ -61,6 +61,12 @@
             <artifactId>assertj-core</artifactId>
             <version>3.27.6</version>
         </dependency>
+        <dependency>
+            <groupId>net.javacrumbs.json-unit</groupId>
+            <artifactId>json-unit-assertj</artifactId>
+            <version>5.1.0</version>  <!-- (latest as of 2026) -->
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>

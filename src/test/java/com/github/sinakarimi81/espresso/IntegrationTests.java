@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
 
+import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class IntegrationTests {
@@ -190,6 +191,91 @@ public class IntegrationTests {
             engine.stop();
         } catch (Exception e) {
             System.out.println(e);
+        }
+    }
+
+    @Test
+    public void handlePathNotFoundException() throws Exception {
+        Espresso espresso = Espresso.getDefault();
+        Engine engine = Engine.getInstance(8080);
+
+        try (var executor = Executors.newVirtualThreadPerTaskExecutor();
+             var client = HttpClient.newHttpClient()) {
+            executor.submit(espresso::start);
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .GET()
+                    .version(HttpClient.Version.HTTP_1_1)
+                    .uri(URI.create("http://localhost:8080/list"))
+                    .build();
+            HttpResponse<String> result = client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            client.shutdownNow();
+            executor.shutdownNow();
+            engine.stop();
+            assertThat(result.statusCode()).isEqualTo(HttpStatus.NOT_FOUND.code());
+            assertThat(result.headers().map()).containsKeys("Date", "Keep-Alive", "Connection", "Content-Type", "Content-Length");
+            assertThatJson(result.body()).isNotNull().isObject()
+                    .containsEntry("status", 404)
+                    .containsEntry("error", "Not Found")
+                    .containsEntry("path", "GET /list");
+        }
+    }
+
+    @Test
+    public void handleVersionNotSupportedException() throws Exception {
+        Espresso espresso = Espresso.getDefault();
+        Engine engine = Engine.getInstance(8080);
+
+        try (var executor = Executors.newVirtualThreadPerTaskExecutor();
+             var client = HttpClient.newHttpClient()) {
+            executor.submit(espresso::start);
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .GET()
+                    .version(HttpClient.Version.HTTP_2)
+                    .uri(URI.create("http://localhost:8080/list"))
+                    .build();
+            HttpResponse<String> result = client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            client.shutdownNow();
+            executor.shutdownNow();
+            engine.stop();
+            assertThat(result.statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.code());
+            assertThat(result.headers().map()).containsKeys("Date", "Keep-Alive", "Connection", "Content-Type", "Content-Length");
+            assertThatJson(result.body()).isNotNull().isObject()
+                    .containsEntry("status", 400)
+                    .containsEntry("error", "Bad Request")
+                    .containsEntry("message", "request contains Upgrade: h2c header, http version 2 is not supported by Espresso");
+        }
+    }
+
+    @Test
+    public void handle5xxException() throws Exception {
+        Espresso espresso = Espresso.getDefault();
+        Engine engine = Engine.getInstance(8080);
+
+        espresso.get("/list", context -> {
+            throw new Exception("throws exception");
+        });
+
+        try (var executor = Executors.newVirtualThreadPerTaskExecutor();
+             var client = HttpClient.newHttpClient()) {
+            executor.submit(espresso::start);
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .GET()
+                    .version(HttpClient.Version.HTTP_1_1)
+                    .uri(URI.create("http://localhost:8080/list"))
+                    .build();
+            HttpResponse<String> result = client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            client.shutdownNow();
+            executor.shutdownNow();
+            engine.stop();
+            assertThat(result.statusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR.code());
+            assertThat(result.headers().map()).containsKeys("Date", "Keep-Alive", "Connection", "Content-Type", "Content-Length");
+            assertThatJson(result.body()).isNotNull().isObject()
+                    .containsEntry("status", 500)
+                    .containsEntry("error", "Internal Server Error")
+                    .containsEntry("message", "throws exception");
         }
     }
 
