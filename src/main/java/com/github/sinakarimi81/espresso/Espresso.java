@@ -5,7 +5,7 @@ import com.github.sinakarimi81.espresso.handler.Handler;
 
 import java.io.IOException;
 
-public class Espresso {
+public class Espresso implements AutoCloseable {
 
     private static Espresso INSTANCE = null;
 
@@ -74,4 +74,12 @@ public class Espresso {
         engine.any(path, handler);
     }
 
+    @Override
+    public void close() throws Exception {
+        try {
+            engine.stop();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
 }

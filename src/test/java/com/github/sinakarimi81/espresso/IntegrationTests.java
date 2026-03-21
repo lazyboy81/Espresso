@@ -11,10 +11,14 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -276,6 +280,44 @@ public class IntegrationTests {
                     .containsEntry("status", 500)
                     .containsEntry("error", "Internal Server Error")
                     .containsEntry("message", "throws exception");
+        }
+    }
+
+    @Test
+    public void closeConnectionAfterKeepAlivePasses() throws Exception {
+        List<Item> items = List.of(new Item(1L, "create server", "create an http server"));
+
+        Espresso espresso = Espresso.getDefault();
+
+        espresso.get("/list", context -> context.response().json(HttpStatus.OK, Map.of("items", items)));
+
+        var executor = Executors.newCachedThreadPool();
+        try (var client = HttpClient.newHttpClient()) {
+            executor.submit(espresso::start);
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .GET()
+                    .setHeader("Keep-Alive", "10")
+                    .version(HttpClient.Version.HTTP_1_1)
+                    .uri(URI.create("http://localhost:8080/list"))
+                    .build();
+            HttpResponse<String> result = client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            assertThat(result.statusCode()).isEqualTo(HttpStatus.OK.code());
+            assertThat(result.headers().map()).containsKeys("Date", "Connection", "Content-Type", "Content-Length");
+            assertThat(result.body()).isNotNull().isNotBlank();
+
+            Thread.sleep(Duration.ofSeconds(15));
+            request = HttpRequest.newBuilder()
+                    .GET()
+                    .version(HttpClient.Version.HTTP_1_1)
+                    .uri(URI.create("http://localhost:8080/list"))
+                    .build();
+            result = client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            Map<String, List<String>> headers = result.headers().map();
+            assertThat(headers).containsKey("Connection").doesNotContainKey("Keep-Alive").containsValue(List.of("close"));
+        } finally {
+            espresso.close();
+            executor.shutdownNow();
         }
     }
 

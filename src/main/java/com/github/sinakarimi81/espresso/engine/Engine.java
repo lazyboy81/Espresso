@@ -22,10 +22,12 @@ import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -49,6 +51,11 @@ public class Engine {
         return INSTANCE;
     }
 
+    private static final Map<String, Tuple<Instant, Integer>> keepAlive = new ConcurrentHashMap<>();
+
+    private volatile boolean isRunning = true;
+
+    private final ExecutorService executorService = Executors.newFixedThreadPool(60);
     private final ServerSocketChannel serverSocketChannel;
     private final Selector selector;
     private final RoutingGroups groups;
@@ -93,26 +100,8 @@ public class Engine {
     }
 
     public void start() throws IOException {
-        while (serverSocketChannel.isOpen() && selector.isOpen()) {
+        while (isRunning && serverSocketChannel.isOpen() && selector.isOpen()) {
             selector.select(this::acceptOrProcessRequest, 1000);
-        }
-    }
-
-    private void acceptOrProcessRequest(SelectionKey key) {
-        try {
-            if (key.isValid() && key.isAcceptable()) {
-                ServerSocketChannel serverSocket = (ServerSocketChannel) key.channel();
-                SocketChannel accepted = serverSocket.accept();
-                if (accepted != null) {
-                    accepted.configureBlocking(false);
-                    accepted.register(selector, SelectionKey.OP_READ);
-                }
-            } else if (key.isValid() && key.isReadable()) {
-                SocketChannel channel = (SocketChannel) key.channel();
-                handleAcceptedSocketChannel(channel);
-            }
-        } catch (Exception e) {
-            throw new RuntimeException(e);
         }
     }
 
@@ -122,8 +111,46 @@ public class Engine {
      * @throws IOException if an exception occurs during resource closure
      */
     public void stop() throws IOException {
-        selector.close();
-        serverSocketChannel.close();
+        isRunning = false;
+
+        executorService.shutdownNow();
+
+        if (selector != null && selector.isOpen()) {
+            selector.wakeup();
+        }
+
+        if (selector != null && selector.isOpen()) {
+            selector.close();
+        }
+        if (serverSocketChannel != null && serverSocketChannel.isOpen()) {
+            serverSocketChannel.close();
+        }
+    }
+
+    private void acceptOrProcessRequest(SelectionKey key) {
+        try {
+            if (key.isAcceptable()) {
+                ServerSocketChannel serverSocket = (ServerSocketChannel) key.channel();
+                SocketChannel accepted = serverSocket.accept();
+                if (accepted != null) {
+                    accepted.configureBlocking(false);
+                    accepted.register(selector, SelectionKey.OP_READ);
+                }
+            } else if (key.isReadable()) {
+                SocketChannel channel = (SocketChannel) key.channel();
+                handleAcceptedSocketChannel(channel);
+            }
+        } catch (Exception e) {
+            // Log the error and cancel the specific key, DO NOT throw RuntimeException
+            key.cancel();
+            if (key.channel() != null) {
+                try {
+                    key.channel().close();
+                } catch (IOException ex) {
+                    // ignore
+                }
+            }
+        }
     }
 
     public void handleAcceptedSocketChannel(SocketChannel channel) {
@@ -141,14 +168,20 @@ public class Engine {
             var methodAndPathTuple = parseUrlFromRequest(requestBuilder);
             var parsedHeaders = parseHeaders(requestBuilder);
             validateHeaders(parsedHeaders);
+
             var body = parseRequestBody(channel, buffer, parsedHeaders, requestBuilder);
 
             var request = new Request(parsedHeaders, body);
             var response = new Response(channel, methodAndPathTuple.left());
             var context = new Context(request, response);
 
+            boolean serverClose = checkForTimeout(parsedHeaders, channel);
+            if (serverClose) {
+                context.response().header("Connection", "close");
+            }
+
             findHandlerAndPassTheContext(methodAndPathTuple.left(), methodAndPathTuple.right(), context);
-            channel.register(selector, SelectionKey.OP_READ);
+            checkForConnectionClosure(serverClose, parsedHeaders, channel);
         } catch (Exception e) {
             log.error("an exception occurred while handling the accepted socket", e);
             parseAndSendErrors(e, channel);
@@ -219,6 +252,24 @@ public class Engine {
         }
     }
 
+    private boolean checkForTimeout(Headers headers, SocketChannel channel) throws IOException {
+        if (headers.containsHeader("Keep-Alive")) {
+            return false;
+        }
+
+        InetSocketAddress remoteAddress = (InetSocketAddress) channel.getRemoteAddress();
+        Tuple<Instant, Integer> lastKeepAlive = keepAlive.get(remoteAddress.getHostName());
+        if (lastKeepAlive == null) {
+            return false;
+        }
+
+        return isRequestKeepAlivePassThreshold(lastKeepAlive.left(), lastKeepAlive.right());
+    }
+
+    private boolean isRequestKeepAlivePassThreshold(Instant lastKeepAliveRequest, Integer keepAliveThreshold) {
+        return Duration.between(lastKeepAliveRequest, Instant.now()).toMillis() > keepAliveThreshold;
+    }
+
     private String parseRequestBody(SocketChannel channel, ByteBuffer buffer,
                                     Headers headers, StringBuilder requestBuilder) throws IOException {
         //TODO: another branch for chunked encoding
@@ -247,6 +298,32 @@ public class Engine {
     private void findHandlerAndPassTheContext(String method, String path, Context context) throws Exception {
         Handler handlerForPath = groups.getHandlerForPath(method, path);
         handlerForPath.handle(context);
+    }
+
+    private void checkForConnectionClosure(boolean serverClose, Headers requestHeaders, SocketChannel channel) throws IOException {
+        if (serverClose) {
+            channel.close();
+            return;
+        }
+
+        List<String> connection = requestHeaders.getHeader("Connection");
+        boolean containsClose = connection != null && !connection.isEmpty() && connection.stream().anyMatch(v -> v.equalsIgnoreCase("close"));
+
+        if (containsClose) {
+            channel.close();
+        } else {
+            // in http/1.1 connection: keep-alive is the default behavior
+            List<String> keepAliveHeader = requestHeaders.getHeader("Keep-Alive");
+            int keepAliveTime = keepAliveHeader != null && !keepAliveHeader.isEmpty() ? Integer.parseInt(keepAliveHeader.getFirst()) : 60;
+
+            InetSocketAddress remoteAddress = (InetSocketAddress) channel.getRemoteAddress();
+            keepAlive.put(remoteAddress.getHostName(), Tuple.of(Instant.now(), keepAliveTime*1000));
+
+            // Re-register ONLY if the channel is still open
+            if (selector.isOpen() && channel.isOpen()) {
+                channel.register(selector, SelectionKey.OP_READ);
+            }
+        }
     }
 
     private void parseAndSendErrors(Exception e, SocketChannel channel) {

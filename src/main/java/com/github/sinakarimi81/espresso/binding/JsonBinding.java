@@ -61,8 +61,12 @@ public class JsonBinding {
             responseMessage.append("Content-Length: ").append(contentLength).append("\r\n");
         }
         responseMessage.append("Date: ").append(DateTimeUtil.rfc1123DateFormat(Instant.now())).append("\r\n");
-        responseMessage.append("Keep-Alive: ").append("timeout=60").append("\r\n");
-        responseMessage.append("Connection: ").append("keep-alive").append("\r\n");
+        boolean doesNotContainConnection = !responseHeaders.containsKey("Connection");
+        boolean connectionValueIsKeepAlive = !doesNotContainConnection && responseHeaders.get("Connection").equals("keep-alive");
+        boolean doesNotContainKeepAlive = !responseHeaders.containsKey("Keep-Alive");
+
+        if (doesNotContainConnection) responseMessage.append("Connection: ").append("keep-alive").append("\r\n");
+        if (doesNotContainKeepAlive && connectionValueIsKeepAlive) responseMessage.append("Keep-Alive: ").append("timeout=60").append("\r\n");
 
         for (Map.Entry<String, String> header : responseHeaders.entrySet()) {
             responseMessage.append(header.getKey()).append(": ").append(header.getValue()).append("\r\n");
