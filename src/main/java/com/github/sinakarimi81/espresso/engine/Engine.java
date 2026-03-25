@@ -6,9 +6,7 @@ import com.github.sinakarimi81.espresso.context.Request;
 import com.github.sinakarimi81.espresso.context.Response;
 import com.github.sinakarimi81.espresso.exception.VersionNotSupportedException;
 import com.github.sinakarimi81.espresso.handler.Handler;
-import com.github.sinakarimi81.espresso.http.Headers;
-import com.github.sinakarimi81.espresso.http.HttpMethod;
-import com.github.sinakarimi81.espresso.http.HttpStatus;
+import com.github.sinakarimi81.espresso.http.*;
 import com.github.sinakarimi81.espresso.routing.RoutingGroups;
 import com.github.sinakarimi81.espresso.util.DateTimeUtil;
 import com.github.sinakarimi81.espresso.util.Tuple;
@@ -24,6 +22,7 @@ import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -166,12 +165,18 @@ public class Engine {
             }
 
             var methodAndPathTuple = parseUrlFromRequest(requestBuilder);
+            var queryParamsUrlTuple = extractQueryParams(methodAndPathTuple.right());
+
+            // since we have to remove the query parameter section from the url, we have to reassign the url and method tuple
+            methodAndPathTuple = Tuple.of(methodAndPathTuple.left(), queryParamsUrlTuple.right());
+
+            var pathVariables = extractPathVariables(methodAndPathTuple.right());
             var parsedHeaders = parseHeaders(requestBuilder);
             validateHeaders(parsedHeaders);
 
             var body = parseRequestBody(channel, buffer, parsedHeaders, requestBuilder);
 
-            var request = new Request(parsedHeaders, body);
+            var request = new Request(parsedHeaders, new PathVariables(pathVariables), new Query(queryParamsUrlTuple.left()), body);
             var response = new Response(channel, methodAndPathTuple.left());
             var context = new Context(request, response);
 
@@ -202,6 +207,28 @@ public class Engine {
                 break; // we have all headers
             }
         }
+    }
+
+    private Tuple<Map<String, String>, String> extractQueryParams(String url) {
+        var params = new HashMap<String, String>();
+
+        if (!url.contains("?")) {
+            return Tuple.of(params, url);
+        }
+
+        int queryParamStartIndex = url.indexOf("?");
+        String query = url.substring(queryParamStartIndex + 1); // so we start from after the "?"
+        for (String param : query.split("&")) {
+            String[] keyValue = param.split("=");
+            // handles the case where the query is like key= (basically a key is present with no value)
+            params.put(keyValue[0], keyValue.length != 2 && param.indexOf("=") != 0 ? "" : keyValue[1]);
+        }
+
+        return Tuple.of(params, url.substring(0, queryParamStartIndex));
+    }
+
+    private Map<String, String> extractPathVariables(String url) {
+        return Map.of();
     }
 
     private Tuple<String, String> parseUrlFromRequest(StringBuilder requestBuilder) {
