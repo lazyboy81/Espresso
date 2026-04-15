@@ -9,6 +9,7 @@ import com.github.sinakarimi81.espresso.handler.Handler;
 import com.github.sinakarimi81.espresso.http.*;
 import com.github.sinakarimi81.espresso.routing.RoutingGroups;
 import com.github.sinakarimi81.espresso.util.DateTimeUtil;
+import com.github.sinakarimi81.espresso.util.Triple;
 import com.github.sinakarimi81.espresso.util.Tuple;
 import lombok.extern.slf4j.Slf4j;
 
@@ -164,20 +165,16 @@ public class Engine {
                 return;
             }
 
-            var methodAndPathTuple = parseUrlFromRequest(requestBuilder);
-            var queryParamsUrlTuple = extractQueryParams(methodAndPathTuple.right());
-
-            // since we have to remove the query parameter section from the url, we have to reassign the url and method tuple
-            methodAndPathTuple = Tuple.of(methodAndPathTuple.left(), queryParamsUrlTuple.right());
-
-            var pathVariables = extractPathVariables(methodAndPathTuple.right());
+            var methodPathQueryTriple = parseUrlFromRequest(requestBuilder);
+            var queryParams = extractQueryParams(methodPathQueryTriple.right());
+            var pathVariables = extractPathVariables(methodPathQueryTriple.right());
             var parsedHeaders = parseHeaders(requestBuilder);
             validateHeaders(parsedHeaders);
 
             var body = parseRequestBody(channel, buffer, parsedHeaders, requestBuilder);
 
-            var request = new Request(parsedHeaders, new PathVariables(pathVariables), new Query(queryParamsUrlTuple.left()), body);
-            var response = new Response(channel, methodAndPathTuple.left());
+            var request = new Request(parsedHeaders, new PathVariables(pathVariables), new Query(queryParams), body);
+            var response = new Response(channel, methodPathQueryTriple.left());
             var context = new Context(request, response);
 
             boolean serverClose = checkForTimeout(parsedHeaders, channel);
@@ -185,7 +182,7 @@ public class Engine {
                 context.response().header("Connection", "close");
             }
 
-            findHandlerAndPassTheContext(methodAndPathTuple.left(), methodAndPathTuple.right(), context);
+            findHandlerAndPassTheContext(methodPathQueryTriple.left(), methodPathQueryTriple.middle(), context);
             checkForConnectionClosure(serverClose, parsedHeaders, channel);
         } catch (Exception e) {
             log.error("an exception occurred while handling the accepted socket", e);
@@ -209,29 +206,27 @@ public class Engine {
         }
     }
 
-    private Tuple<Map<String, String>, String> extractQueryParams(String url) {
+    private Map<String, String> extractQueryParams(String query) {
         var params = new HashMap<String, String>();
 
-        if (!url.contains("?")) {
-            return Tuple.of(params, url);
+        if (query.isEmpty()) {
+            return params;
         }
 
-        int queryParamStartIndex = url.indexOf("?");
-        String query = url.substring(queryParamStartIndex + 1); // so we start from after the "?"
         for (String param : query.split("&")) {
             String[] keyValue = param.split("=");
             // handles the case where the query is like key= (basically a key is present with no value)
             params.put(keyValue[0], keyValue.length != 2 && param.indexOf("=") != 0 ? "" : keyValue[1]);
         }
 
-        return Tuple.of(params, url.substring(0, queryParamStartIndex));
+        return params;
     }
 
     private Map<String, String> extractPathVariables(String url) {
         return Map.of();
     }
 
-    private Tuple<String, String> parseUrlFromRequest(StringBuilder requestBuilder) {
+    private Triple<String, String, String> parseUrlFromRequest(StringBuilder requestBuilder) {
         int requestUrlEnd = requestBuilder.indexOf("\r\n");
         String requestLine = requestBuilder.substring(0, requestUrlEnd);
         String[] requestLineParts = requestLine.split(" ");
@@ -244,8 +239,10 @@ public class Engine {
             throw new VersionNotSupportedException(String.format("version %s is not supported by Espresso", version));
         }
 
+        String query = path.contains("?") ? path.substring(path.indexOf("?") + 1) : "";
+
         requestBuilder.delete(0, requestUrlEnd + 2); // so next we have to only parse headers, 2 is \r\n length
-        return Tuple.of(method, path);
+        return Triple.of(method, path, query);
     }
 
     private Headers parseHeaders(StringBuilder requestBuilder) {
