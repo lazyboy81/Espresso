@@ -318,4 +318,69 @@ public class IntegrationTests {
         }
     }
 
+    @Test
+    public void handleRequestWithPathVariables() throws Exception {
+        Espresso espresso = Espresso.getDefault();
+        Engine engine = Engine.getInstance(8080);
+
+        espresso.get("/event/:status", context -> {
+            String status = context.request().pathVariables().get("status");
+
+            String message = String.format("received request for status: %s", status);
+
+            context.response().json(HttpStatus.OK, Map.of("message", message));
+        });
+
+        try (var executor = Executors.newCachedThreadPool();
+             var client = HttpClient.newHttpClient()) {
+            executor.submit(espresso::start);
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .GET()
+                    .version(HttpClient.Version.HTTP_1_1)
+                    .uri(URI.create("http://localhost:8080/event/valid"))
+                    .build();
+            HttpResponse<String> result = client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            client.shutdownNow();
+            executor.shutdownNow();
+            engine.stop();
+            assertThat(result.statusCode()).isEqualTo(HttpStatus.OK.code());
+            assertThat(result.headers().map()).containsKeys("Date", "Connection", "Content-Type", "Content-Length");
+            assertThatJson(result.body()).isNotNull().isObject()
+                    .containsEntry("message", "received request for status: valid");
+        }
+    }
+
+    @Test
+    public void handleRequestWithQueryParam() throws Exception {
+        Espresso espresso = Espresso.getDefault();
+        Engine engine = Engine.getInstance(8080);
+
+        espresso.get("/event", context -> {
+            String status = context.request().query().get("status");
+
+            String message = String.format("received request for status: %s", status);
+
+            context.response().json(HttpStatus.OK, Map.of("message", message));
+        });
+
+        try (var executor = Executors.newCachedThreadPool();
+             var client = HttpClient.newHttpClient()) {
+            executor.submit(espresso::start);
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .GET()
+                    .version(HttpClient.Version.HTTP_1_1)
+                    .uri(URI.create("http://localhost:8080/event?status=valid"))
+                    .build();
+            HttpResponse<String> result = client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            client.shutdownNow();
+            executor.shutdownNow();
+            engine.stop();
+            assertThat(result.statusCode()).isEqualTo(HttpStatus.OK.code());
+            assertThat(result.headers().map()).containsKeys("Date", "Connection", "Content-Type", "Content-Length");
+            assertThatJson(result.body()).isNotNull().isObject().containsEntry("message", "received request for status: valid");
+        }
+    }
+
 }

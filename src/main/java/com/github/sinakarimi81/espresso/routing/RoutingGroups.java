@@ -31,11 +31,19 @@ public class RoutingGroups {
             throw new IllegalArgumentException("handler cannot be null");
         }
 
-        if (path.startsWith("/")) {
-            path = path.substring(1);
+        // do prevent problems down the line
+        if (!path.startsWith("/")) {
+            path = "/".concat(path);
         }
 
-        if (path.contains("*") || path.contains(":")) {
+        // this means the client is setting a handler for the '/' path
+        if (path.isEmpty()) {
+            staticGroups.put(getStaticGroupKey(method, "/"), handler);
+            return;
+        }
+
+        // if path does not contain any dynamic elements then it is static
+        if (!path.contains("*") && !path.contains(":")) {
             staticGroups.put(getStaticGroupKey(method, path), handler);
             return;
         }
@@ -49,7 +57,7 @@ public class RoutingGroups {
         root.addRoute(path, handler);
     }
 
-    public Handler getHandlerForPath(String method, String path) {
+    public Handler getHandlerForPath(String method, String path, Map<String, String> pathVars) {
 
         String staticGroupKey = getStaticGroupKey(method, path);
         if (staticGroups.containsKey(staticGroupKey)) {
@@ -66,11 +74,7 @@ public class RoutingGroups {
             ));
         }
 
-        return routingGroup.getHandlerForPath(path);
-    }
-
-    public RoutingGroup getGroup(String name) {
-        return dynamicGroups.get(name);
+        return routingGroup.getHandlerForPath(path, pathVars);
     }
 
     private String getStaticGroupKey(String method, String path) {

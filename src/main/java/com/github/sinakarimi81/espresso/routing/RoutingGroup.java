@@ -2,8 +2,8 @@ package com.github.sinakarimi81.espresso.routing;
 
 import com.github.sinakarimi81.espresso.handler.Handler;
 import com.github.sinakarimi81.espresso.http.HttpStatus;
-import com.github.sinakarimi81.espresso.util.Container;
 import com.github.sinakarimi81.espresso.util.DateTimeUtil;
+import com.github.sinakarimi81.espresso.util.StringUtils;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -25,23 +25,15 @@ public class RoutingGroup {
     private PathNode root;
 
     public void addRoute(String path, Handler handler) {
-        if (path.isEmpty()) { // this mean they are setting a handler for the '/' path
-            root.setHandler(handler);
-            return;
-        }
-
-        if (root.getChildSegments().isEmpty()) {
-            var node = new PathNode(path, "/".concat(path), root, new ArrayList<>(), handler);
-            root.getChildSegments().add(node);
-            return;
-        }
-
         setHandler(root, path, handler);
     }
 
     private void setHandler(PathNode root, String path, Handler handler) {
         var curr = root;
-        var pathSegments = Arrays.stream(path.split("/")).iterator(); // to avoid an extra empty element at the beginning
+
+        path = StringUtils.trimBeginSlash(path);
+        var pathSegments = Arrays.stream(path.split("/")).iterator();
+
         walk:
         while (pathSegments.hasNext()) {
             String pathSegment = pathSegments.next();
@@ -66,12 +58,10 @@ public class RoutingGroup {
     }
 
     // todo: find a better way to implement the tree traversal
-    public Handler getHandlerForPath(String fullPath) {
-        Container<Handler> container = new Container<>(null);
-        traverseTree(root, fullPath, container);
-
-        if (container.getContainee() != null) {
-            return container.getContainee();
+    public Handler getHandlerForPath(String fullPath, Map<String, String> pathVars) {
+        var handler = traverseTree(root, fullPath, pathVars);
+        if (handler != null) {
+            return handler;
         }
 
         return context -> context.response().json(HttpStatus.NOT_FOUND, Map.of(
@@ -82,19 +72,40 @@ public class RoutingGroup {
         ));
     }
 
-    private void traverseTree(PathNode root, String fullPath, Container<Handler> container) {
-        if (root.getPathAtThisPoint().equals(fullPath)) {
-            container.setContainee(root.getHandler());
-            return;
+    private Handler traverseTree(PathNode root, String fullPath, Map<String, String> pathVars) {
+        var curr = root;
+        var pathSegments = Arrays.stream(fullPath.substring(1).split("/")).iterator(); // to avoid an extra empty element at the beginning
+
+        walk:
+        while (pathSegments.hasNext()) {
+            String pathSegment = pathSegments.next();
+            List<PathNode> childSegments = curr.getChildSegments();
+
+            for (PathNode childSegment : childSegments) {
+                String segment = childSegment.getSegment();
+
+                if (isNotDynamic(segment)) {
+                    if (segment.equals(pathSegment)) {
+                        curr = childSegment;
+                        continue walk;
+                    }
+                } else {
+                    String varKey = segment.substring(1);
+                    pathVars.put(varKey, pathSegment);
+                    curr = childSegment;
+                    continue walk;
+                }
+            }
+
+            // the given segment didn't match anything so we don't have it
+            return null;
         }
 
-        List<PathNode> children = root.getChildSegments();
-        for (PathNode child : children) {
-            traverseTree(child, fullPath, container);
-            if (container.getContainee() != null) {
-                return;
-            }
-        }
+        return curr.getHandler();
+    }
+
+    private boolean isNotDynamic(String segment) {
+        return !segment.contains("*") && !segment.contains(":");
     }
 
 }

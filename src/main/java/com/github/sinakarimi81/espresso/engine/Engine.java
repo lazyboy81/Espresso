@@ -165,14 +165,24 @@ public class Engine {
             }
 
             var methodPathQueryTriple = parseUrlFromRequest(requestBuilder);
-            var queryParams = extractQueryParams(methodPathQueryTriple.right());
-            var pathVariables = extractPathVariables(methodPathQueryTriple.right());
+            String method = methodPathQueryTriple.left();
+            String path = methodPathQueryTriple.middle();
+            String query = methodPathQueryTriple.right();
+
+            var queryParams = extractQueryParams(query);
             var parsedHeaders = parseHeaders(requestBuilder);
             validateHeaders(parsedHeaders);
 
             var body = parseRequestBody(channel, buffer, parsedHeaders, requestBuilder);
 
-            var request = new Request(parsedHeaders, new PathVariables(pathVariables), new Query(queryParams), body);
+            var pathVariablesAndHandlerTuple = extractPathVariablesAndReturnHandler(method, path);
+            Map<String, String> pathVariables = pathVariablesAndHandlerTuple.left();
+            Handler handler = pathVariablesAndHandlerTuple.right();
+
+            var request = new Request(
+                    parsedHeaders, new PathVariables(pathVariables),
+                    new Query(queryParams), body
+            );
             var response = new Response(channel, methodPathQueryTriple.left());
             var context = new Context(request, response);
 
@@ -181,7 +191,8 @@ public class Engine {
                 context.response().header("Connection", "close");
             }
 
-            findHandlerAndPassTheContext(methodPathQueryTriple.left(), methodPathQueryTriple.middle(), context);
+            handler.handle(context);
+
             checkForConnectionClosure(serverClose, parsedHeaders, channel);
         } catch (Exception e) {
             log.error("an exception occurred while handling the accepted socket", e);
@@ -221,8 +232,12 @@ public class Engine {
         return params;
     }
 
-    private Map<String, String> extractPathVariables(String url) {
-        return Map.of();
+    private Tuple<Map<String, String>, Handler> extractPathVariablesAndReturnHandler(String method, String urlPath) {
+        var pathVars = new HashMap<String, String>();
+
+        Handler handlerForPath = groups.getHandlerForPath(method, urlPath, pathVars);
+
+        return Tuple.of(pathVars, handlerForPath);
     }
 
     private Triple<String, String, String> parseUrlFromRequest(StringBuilder requestBuilder) {
@@ -239,6 +254,7 @@ public class Engine {
         }
 
         String query = path.contains("?") ? path.substring(path.indexOf("?") + 1) : "";
+        path = path.substring(0, path.indexOf("?"));
 
         requestBuilder.delete(0, requestUrlEnd + 2); // so next we have to only parse headers, 2 is \r\n length
         return Triple.of(method, path, query);
@@ -316,11 +332,6 @@ public class Engine {
         } else {
             return "";
         }
-    }
-
-    private void findHandlerAndPassTheContext(String method, String path, Context context) throws Exception {
-        Handler handlerForPath = groups.getHandlerForPath(method, path);
-        handlerForPath.handle(context);
     }
 
     private void checkForConnectionClosure(boolean serverClose, Headers requestHeaders, SocketChannel channel) throws IOException {
