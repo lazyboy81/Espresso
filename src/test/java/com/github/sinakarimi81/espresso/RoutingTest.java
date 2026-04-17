@@ -18,42 +18,42 @@ public class RoutingTest {
 
     @Test
     public void addNewRootRoute() {
-        RoutingGroups groups = RoutingGroups.getInstance();
+        RoutingGroups groups = new RoutingGroups();
 
         groups.addRoute(HttpMethod.GET_METHOD, "/", System.out::println);
         PathNode root = groups.getGroup(HttpMethod.GET_METHOD).getRoot();
-        assertThat(root.getChildren()).isEmpty();
+        assertThat(root.getChildSegments()).isEmpty();
         assertThat(root.getHandler()).isNotNull();
     }
 
     @Test
     public void addNewRoute() {
-        RoutingGroups groups = RoutingGroups.getInstance();
+        RoutingGroups groups = new RoutingGroups();
 
         groups.addRoute(HttpMethod.GET_METHOD, "/", System.out::println);
         groups.addRoute(HttpMethod.GET_METHOD, "/events", context -> System.out.println("/events route"));
         groups.addRoute(HttpMethod.GET_METHOD, "/add", context -> System.out.println("/add route"));
 
-        assertThat(groups.getGroup(HttpMethod.GET_METHOD).getRoot().getChildren()).hasSize(2);
+        assertThat(groups.getGroup(HttpMethod.GET_METHOD).getRoot().getChildSegments()).hasSize(2);
     }
 
     @Test
     public void addNewRouteToChild() {
-        RoutingGroups groups = RoutingGroups.getInstance();
+        RoutingGroups groups = new RoutingGroups();
 
         groups.addRoute(HttpMethod.GET_METHOD, "/", System.out::println);
         groups.addRoute(HttpMethod.GET_METHOD, "/events", context -> System.out.println("/events route"));
         groups.addRoute(HttpMethod.GET_METHOD, "/add", context -> System.out.println("/add route"));
         groups.addRoute(HttpMethod.GET_METHOD, "/events/status", context -> System.out.println("/events/status route"));
 
-        List<PathNode> children = groups.getGroup(HttpMethod.GET_METHOD).getRoot().getChildren();
+        List<PathNode> children = groups.getGroup(HttpMethod.GET_METHOD).getRoot().getChildSegments();
         assertThat(children).hasSize(2);
-        assertThat(children).extracting(PathNode::getChildren).extracting(List::size).contains(1, 0);
+        assertThat(children).extracting(PathNode::getChildSegments).extracting(List::size).contains(1, 0);
     }
 
     @Test
     public void addNewRouteToChildChild() {
-        RoutingGroups groups = RoutingGroups.getInstance();
+        RoutingGroups groups = new RoutingGroups();
 
         groups.addRoute(HttpMethod.GET_METHOD,"/", System.out::println);
         groups.addRoute(HttpMethod.GET_METHOD,"/events", context -> System.out.println("/events route"));
@@ -62,14 +62,14 @@ public class RoutingTest {
         groups.addRoute(HttpMethod.GET_METHOD,"/events/status", context -> System.out.println("/events/status route"));
         groups.addRoute(HttpMethod.GET_METHOD,"/events/id", context -> System.out.println("/events/id route"));
 
-        List<PathNode> children = groups.getGroup(HttpMethod.GET_METHOD).getRoot().getChildren();
+        List<PathNode> children = groups.getGroup(HttpMethod.GET_METHOD).getRoot().getChildSegments();
         assertThat(children).hasSize(2);
-        assertThat(children).extracting(PathNode::getChildren).extracting(List::size).contains(2, 1);
+        assertThat(children).extracting(PathNode::getChildSegments).extracting(List::size).contains(2, 1);
     }
 
     @Test
     public void addNewRouteToRoot() {
-        RoutingGroups groups = RoutingGroups.getInstance();
+        RoutingGroups groups = new RoutingGroups();
 
         groups.addRoute(HttpMethod.GET_METHOD, "/", System.out::println);
         groups.addRoute(HttpMethod.GET_METHOD, "/events", context -> System.out.println("/events route"));
@@ -79,14 +79,14 @@ public class RoutingTest {
         groups.addRoute(HttpMethod.GET_METHOD, "/events/id", context -> System.out.println("/events/id route"));
         groups.addRoute(HttpMethod.GET_METHOD, "/remove", context -> System.out.println("/remove route"));
 
-        List<PathNode> children = groups.getGroup(HttpMethod.GET_METHOD).getRoot().getChildren();
+        List<PathNode> children = groups.getGroup(HttpMethod.GET_METHOD).getRoot().getChildSegments();
         assertThat(children).hasSize(3);
-        assertThat(children).extracting(PathNode::getChildren).extracting(List::size).contains(2, 1, 0);
+        assertThat(children).extracting(PathNode::getChildSegments).extracting(List::size).contains(2, 1, 0);
     }
 
     @Test
     public void getHandlerForRoot() {
-        RoutingGroups groups = RoutingGroups.getInstance();
+        RoutingGroups groups = new RoutingGroups();
 
         Handler handler = System.out::println;
         groups.addRoute(HttpMethod.GET_METHOD, "/", handler);
@@ -97,7 +97,7 @@ public class RoutingTest {
 
     @Test
     public void getHandler_multiLevelTree() {
-        RoutingGroups groups = RoutingGroups.getInstance();
+        RoutingGroups groups = new RoutingGroups();
 
         groups.addRoute(HttpMethod.GET_METHOD, "/", System.out::println);
         groups.addRoute(HttpMethod.GET_METHOD, "/events", context -> System.out.println("/events route"));
@@ -114,13 +114,13 @@ public class RoutingTest {
 
     @Test
     public void getHandler_throwsExceptionWhenNoHandlerIsGiven() {
-        RoutingGroups groups = RoutingGroups.getInstance();
+        RoutingGroups groups = new RoutingGroups();
         Assertions.assertThrows(IllegalArgumentException.class, () -> groups.addRoute(HttpMethod.GET_METHOD, "/", null));
     }
 
     @Test
     public void getHandler_multiLevelTree_throwsExceptionWhenHasNoHandler() {
-        RoutingGroups groups = RoutingGroups.getInstance();
+        RoutingGroups groups = new RoutingGroups();
         groups.addRoute(HttpMethod.GET_METHOD, "/", System.out::println);
 
         RoutingGroup getRoot = groups.getGroup(HttpMethod.GET_METHOD);
@@ -142,7 +142,7 @@ public class RoutingTest {
     @Test
     public void addPathForAllMethods() throws IOException {
         Engine engine = Engine.getInstance(8080);
-        RoutingGroups groups = RoutingGroups.getInstance();
+        RoutingGroups groups = new RoutingGroups();
 
         engine.any("/test", System.out::println);
 

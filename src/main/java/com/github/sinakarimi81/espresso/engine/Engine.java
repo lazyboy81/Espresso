@@ -42,8 +42,7 @@ public class Engine {
         if (INSTANCE == null) {
             synchronized (Engine.class) {
                 if (INSTANCE == null) {
-                    RoutingGroups routingGroups = RoutingGroups.getInstance();
-                    INSTANCE = new Engine(port, routingGroups);
+                    INSTANCE = new Engine(port, new RoutingGroups());
                 }
             }
         }

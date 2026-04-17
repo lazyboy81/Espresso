@@ -11,25 +11,15 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class RoutingGroups {
+    private final Map<String, Handler> staticGroups;
+    private final Map<String, RoutingGroup> dynamicGroups;
 
-    private static RoutingGroups INSTANCE;
-
-    public static RoutingGroups getInstance() {
-        if (INSTANCE == null) {
-            synchronized (RoutingGroups.class) {
-                if (INSTANCE == null) {
-                    INSTANCE = new RoutingGroups();
-                }
-            }
-        }
-
-        return INSTANCE;
-    }
-
-    private final Map<String, RoutingGroup> groups;
-
-    private RoutingGroups() {
-        groups = new HashMap<>();
+    /**
+     * if concurrency becomes an issue we can change this to ConcurrentHashMap {@link java.util.concurrent.ConcurrentHashMap}
+     */
+    public RoutingGroups() {
+        staticGroups = new HashMap<>();
+        dynamicGroups = new HashMap<>();
     }
 
     public void addRoute(String method, String path, Handler handler) {
@@ -37,25 +27,36 @@ public class RoutingGroups {
             throw new IllegalArgumentException(String.format("method %s is not supported in espresso", method));
         }
 
-        if (!path.startsWith("/")) {
-            throw new IllegalArgumentException(String.format("given path does not start with '/': %s", path));
-        }
-
         if (handler == null) {
             throw new IllegalArgumentException("handler cannot be null");
         }
 
-        var root = groups.get(method);
+        if (path.startsWith("/")) {
+            path = path.substring(1);
+        }
+
+        if (path.contains("*") || path.contains(":")) {
+            staticGroups.put(getStaticGroupKey(method, path), handler);
+            return;
+        }
+
+        var root = dynamicGroups.get(method);
         if (root == null) {
-            addGroup(method);
-            root = getGroup(method);
+            root = new RoutingGroup(method, new PathNode("/", "/", null, new ArrayList<>(), null));
+            dynamicGroups.put(method, root);
         }
 
         root.addRoute(path, handler);
     }
 
     public Handler getHandlerForPath(String method, String path) {
-        RoutingGroup routingGroup = groups.get(method);
+
+        String staticGroupKey = getStaticGroupKey(method, path);
+        if (staticGroups.containsKey(staticGroupKey)) {
+            return staticGroups.get(staticGroupKey);
+        }
+
+        RoutingGroup routingGroup = dynamicGroups.get(method);
         if (routingGroup == null) {
             return context -> context.response().json(HttpStatus.NOT_FOUND, Map.of(
                     "timestamp", DateTimeUtil.rfc1123DateFormat(Instant.now()),
@@ -69,11 +70,11 @@ public class RoutingGroups {
     }
 
     public RoutingGroup getGroup(String name) {
-        return groups.get(name);
+        return dynamicGroups.get(name);
     }
 
-    private void addGroup(String method) {
-        groups.put(method, new RoutingGroup(method, new PathNode("/", "/", new ArrayList<>(), null)));
+    private String getStaticGroupKey(String method, String path) {
+        return method + " " + path;
     }
 
 }

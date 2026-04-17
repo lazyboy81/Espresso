@@ -14,15 +14,17 @@ import java.util.List;
 @NoArgsConstructor
 public class PathNode {
 
-    private String path;
-    private String fullPath;
-    private List<PathNode> children;
+    private String segment;
+    private String pathAtThisPoint;
+    private PathNode parent;
+    private List<PathNode> childSegments;
     private Handler handler;
 
     @Override
     public String toString() {
         return "PathNode{" +
-                "fullPath='" + fullPath + '\'' +
+                "segment='" + segment + '\'' +
+                ", pathAtThisPoint='" + pathAtThisPoint + '\'' +
                 '}';
     }
 }

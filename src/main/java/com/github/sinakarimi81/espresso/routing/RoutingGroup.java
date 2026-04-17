@@ -11,6 +11,7 @@ import lombok.Setter;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -24,48 +25,44 @@ public class RoutingGroup {
     private PathNode root;
 
     public void addRoute(String path, Handler handler) {
-        if (path.equals("/")) {
+        if (path.isEmpty()) { // this mean they are setting a handler for the '/' path
             root.setHandler(handler);
             return;
         }
 
-        if (root.getChildren().isEmpty()) {
-            var node = new PathNode(path, path, new ArrayList<>(), handler);
-            root.getChildren().add(node);
+        if (root.getChildSegments().isEmpty()) {
+            var node = new PathNode(path, "/".concat(path), root, new ArrayList<>(), handler);
+            root.getChildSegments().add(node);
             return;
         }
 
+        setHandler(root, path, handler);
+    }
+
+    private void setHandler(PathNode root, String path, Handler handler) {
         var curr = root;
+        var pathSegments = Arrays.stream(path.split("/")).iterator(); // to avoid an extra empty element at the beginning
         walk:
-        while (true) {
-            List<PathNode> children = curr.getChildren();
-            for (PathNode child : children) {
-                int prefixIndex = longestCommonPrefix(path, child.getFullPath());
+        while (pathSegments.hasNext()) {
+            String pathSegment = pathSegments.next();
+            List<PathNode> childSegments = curr.getChildSegments();
 
-                if (prefixIndex == 1) continue;
-
-                if (prefixIndex >= child.getFullPath().length() && prefixIndex < path.length()) {
-                    curr = child;
+            for (PathNode childSegment : childSegments) {
+                if (childSegment.getSegment().equals(pathSegment)) {
+                    curr = childSegment;
                     continue walk;
                 }
             }
 
-            var node = new PathNode(path.substring(curr.getFullPath().length()), path, new ArrayList<>(), handler);
-            curr.getChildren().add(node);
-            break;
+            String pathAtThisPoint = curr.getPathAtThisPoint().endsWith("/") ? curr.getPathAtThisPoint() : curr.getPathAtThisPoint().concat("/");
+            PathNode node = new PathNode(pathSegment, pathAtThisPoint.concat(pathSegment), curr, new ArrayList<>(), null);;
+            if (!pathSegments.hasNext()) {
+                node.setHandler(handler);
+            }
+
+            curr.getChildSegments().add(node);
+            curr = node;
         }
-
-    }
-
-    private int longestCommonPrefix(String a, String b) {
-        int result = 0;
-
-        int max = Math.min(a.length(), b.length());
-        while (result < max && a.charAt(result) == b.charAt(result)) {
-            result = result + 1;
-        }
-
-        return result;
     }
 
     // todo: find a better way to implement the tree traversal
@@ -86,12 +83,12 @@ public class RoutingGroup {
     }
 
     private void traverseTree(PathNode root, String fullPath, Container<Handler> container) {
-        if (root.getFullPath().equals(fullPath)) {
+        if (root.getPathAtThisPoint().equals(fullPath)) {
             container.setContainee(root.getHandler());
             return;
         }
 
-        List<PathNode> children = root.getChildren();
+        List<PathNode> children = root.getChildSegments();
         for (PathNode child : children) {
             traverseTree(child, fullPath, container);
             if (container.getContainee() != null) {
