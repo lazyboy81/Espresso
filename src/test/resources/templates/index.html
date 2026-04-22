@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Hello World | Simple Web Page</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #e9edf2 100%);
+            font-family: 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(2px);
+            border-radius: 2rem;
+            box-shadow: 0 25px 40px -12px rgba(0, 0, 0, 0.25), 0 2px 6px rgba(0, 0, 0, 0.05);
+            padding: 2.5rem 2rem;
+            max-width: 600px;
+            width: 100%;
+            text-align: center;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 30px 50px -15px rgba(0, 0, 0, 0.3);
+        }
+
+        .greeting-icon {
+            font-size: 4.5rem;
+            margin-bottom: 1rem;
+            display: inline-block;
+            animation: subtleWiggle 3s infinite ease-in-out;
+        }
+
+        @keyframes subtleWiggle {
+            0%, 100% { transform: rotate(0deg); }
+            50% { transform: rotate(5deg) scale(1.02); }
+        }
+
+        h1 {
+            font-size: 3rem;
+            font-weight: 700;
+            background: linear-gradient(120deg, #1e2b3c, #2c4b66);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            letter-spacing: -0.02em;
+            margin-bottom: 0.5rem;
+        }
+
+        .highlight {
+            background: linear-gradient(145deg, #f9f3e3, #fff7ef);
+            display: inline-block;
+            padding: 0.2rem 0.9rem;
+            border-radius: 60px;
+            font-weight: 500;
+            font-size: 1rem;
+            color: #a55728;
+            margin-top: 0.5rem;
+            box-shadow: inset 0 1px 1px rgba(0,0,0,0.02), 0 1px 2px rgba(0,0,0,0.05);
+        }
+
+        .message {
+            font-size: 1.2rem;
+            line-height: 1.5;
+            color: #2c3e44;
+            margin: 1.8rem 0 1rem;
+            padding: 0 0.5rem;
+            border-left: 4px solid #cbdbe2;
+            border-right: 4px solid #cbdbe2;
+            background: #fefcf8;
+            border-radius: 20px;
+            display: inline-block;
+            padding: 0.7rem 1.4rem;
+            font-weight: 500;
+        }
+
+        .footer-note {
+            margin-top: 2rem;
+            font-size: 0.8rem;
+            color: #5f6c7a;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 1.2rem;
+            display: flex;
+            justify-content: center;
+            gap: 1.2rem;
+            flex-wrap: wrap;
+        }
+
+        .footer-note span {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+
+        button {
+            background: #2c3e44;
+            border: none;
+            color: white;
+            font-weight: 600;
+            font-size: 0.85rem;
+            padding: 0.5rem 1rem;
+            border-radius: 60px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-top: 0.5rem;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+
+        button:hover {
+            background: #1f2e33;
+            transform: scale(0.97);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        @media (max-width: 480px) {
+            .card {
+                padding: 1.8rem 1.2rem;
+            }
+            h1 {
+                font-size: 2.4rem;
+            }
+            .greeting-icon {
+                font-size: 3.5rem;
+            }
+            .message {
+                font-size: 1rem;
+                padding: 0.5rem 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="card">
+    <div class="greeting-icon" aria-hidden="true">🌍✨</div>
+    <h1>Hello, World!</h1>
+    <div class="highlight">👋 Welcome to the web</div>
+    <p class="message">
+        “The journey of a thousand miles begins with a single step.”<br>
+        <span style="font-size: 0.9rem; opacity: 0.8;">— A simple HTML/CSS greeting</span>
+    </p>
+    <button id="greetBtn" aria-label="Say hello in console">✨ Say hello ✨</button>
+    <div class="footer-note">
+        <span>🖥️ HTML5</span>
+        <span>🎨 CSS3</span>
+        <span>🚀 Interactive</span>
+    </div>
+</div>
+
+<script>
+    // Simple interactive Hello World console & alert demo (non-intrusive)
+    (function() {
+        const button = document.getElementById('greetBtn');
+
+        // Function to deliver a friendly console message
+        function displayConsoleHello() {
+            const style = 'background: #2c3e44; color: #f0f3f8; font-size: 14px; padding: 4px 10px; border-radius: 20px; font-weight: bold;';
+            console.log('%c✨ Hello, World! ✨', style);
+            console.log('%cYou just triggered an interactive greeting!', 'color: #4a627a; font-style: italic;');
+            console.log('🌟 This page says: Welcome to the simplest Hello World yet with elegance.');
+        }
+
+        // Optional: small notification using a temporary floating message?
+        // We'll add a subtle alert alternative but not annoying: show a micro-toast style message
+        function showGentleToast() {
+            // create a temporary toast element if not exists or remove previous
+            let existingToast = document.querySelector('.micro-toast');
+            if(existingToast) existingToast.remove();
+
+            const toast = document.createElement('div');
+            toast.className = 'micro-toast';
+            toast.textContent = '🌿 Hello, World! (console log ready)';
+            Object.assign(toast.style, {
+                position: 'fixed',
+                bottom: '20px',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                background: '#2c3e44ee',
+                backdropFilter: 'blur(8px)',
+                color: 'white',
+                padding: '8px 20px',
+                borderRadius: '40px',
+                fontSize: '0.85rem',
+                fontWeight: '500',
+                fontFamily: 'system-ui, sans-serif',
+                zIndex: '1000',
+                boxShadow: '0 8px 18px rgba(0,0,0,0.2)',
+                pointerEvents: 'none',
+                transition: 'opacity 0.2s ease',
+                opacity: '0'
+            });
+            document.body.appendChild(toast);
+            // fade in
+            setTimeout(() => { toast.style.opacity = '1'; }, 10);
+            // fade out and remove after 2 seconds
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => { if(toast.parentNode) toast.parentNode.removeChild(toast); }, 300);
+            }, 2000);
+        }
+
+        function handleGreeting() {
+            // console output as classic hello world developer gesture
+            displayConsoleHello();
+            // Provide a small non-intrusive user feedback + alert alternative (optional but non-obstructive)
+            showGentleToast();
+            // Also log timestamp for flair
+            console.log(`🎉 Hello triggered at ${new Date().toLocaleTimeString()} - enjoy your code!`);
+        }
+
+        if(button) {
+            button.addEventListener('click', handleGreeting);
+            // add a little easter egg: double click logs special world message
+            button.addEventListener('dblclick', function() {
+                console.log('%c🌍🌍 DOUBLE HELLO WORLD 🌍🌍', 'background: #f1c40f; color: #1e2b3c; font-size: 16px; font-weight: bold; padding: 2px 6px; border-radius: 12px;');
+                showGentleToast(); // also show a toast for fun
+            });
+        }
+
+        // initial console greeting - simple "hello world console" for dev tools
+        console.log("%c🚀 Hello, World! — Page Loaded", "color: #2c6e2f; font-size: 12px; font-weight: 500; background: #eef5e8; padding: 2px 6px; border-radius: 16px;");
+        console.log("👉 Click the button or open the console for an interactive Hello World experience!");
+    })();
+</script>
+</body>
+</html>

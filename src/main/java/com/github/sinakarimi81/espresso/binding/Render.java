@@ -1,6 +1,5 @@
 package com.github.sinakarimi81.espresso.binding;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.sinakarimi81.espresso.http.HttpMethod;
 import com.github.sinakarimi81.espresso.http.HttpStatus;
 import com.github.sinakarimi81.espresso.http.HttpVersion;
@@ -10,24 +9,15 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Map;
 
-public class JsonBinding {
+public abstract class Render {
 
-    private static final String CONTENT_TYPE = "application/json; charset=utf-8";
+    public abstract String convertResponsePayload(Object payload);
+    public abstract String contentTypeValue();
 
-    private final ObjectMapper mapper = new ObjectMapper();
-
-    public <T> T bind(String payload, Class<T> tClass) {
-        try {
-            return mapper.readValue(payload, tClass);
-        } catch (Exception e) {
-            throw new RuntimeException("failed to process payload as json", e);
-        }
-    }
-
-    public String jsonify(String requestMethod, HttpStatus status, Map<String, String> responseHeaders, Map<String, Object> payload) {
+    public String serialize(String requestMethod, HttpStatus status, Map<String, String> responseHeaders, Object payload) {
         StringBuilder responseMessage = new StringBuilder();
 
-        String content = convertPayloadToJsonString(payload);
+        String content = convertResponsePayload(payload);
         appendStatusLine(responseMessage, status);
         appendHeaders(responseMessage, responseHeaders, content.isBlank() ? -1 : content.getBytes(StandardCharsets.UTF_8).length);
         if (!HttpMethod.HEAD_METHOD.equals(requestMethod) || status != HttpStatus.NO_CONTENT) {
@@ -37,27 +27,16 @@ public class JsonBinding {
         return responseMessage.toString();
     }
 
-    private String convertPayloadToJsonString(Map<String, Object> payload) {
-        if (payload == null || payload.isEmpty()) {
-            return "";
-        }
 
-        try {
-            return mapper.writeValueAsString(payload);
-        } catch (Exception e) {
-            throw new RuntimeException("failed to write input object as json", e);
-        }
-    }
-
-    private void appendStatusLine(StringBuilder responseMessage, HttpStatus status) {
+    protected void appendStatusLine(StringBuilder responseMessage, HttpStatus status) {
         responseMessage.append(HttpVersion.SUPPORTED_VERSIONS.getLast()).append(" ")
                 .append(status.code()).append(" ")
                 .append(status.description()).append("\r\n");
     }
 
-    private void appendHeaders(StringBuilder responseMessage, Map<String, String> responseHeaders, int contentLength) {
+    protected void appendHeaders(StringBuilder responseMessage, Map<String, String> responseHeaders, int contentLength) {
         if (contentLength != -1) {
-            responseMessage.append("Content-Type: ").append(CONTENT_TYPE).append("\r\n");
+            responseMessage.append("Content-Type: ").append(contentTypeValue()).append("\r\n");
             responseMessage.append("Content-Length: ").append(contentLength).append("\r\n");
         }
         responseMessage.append("Date: ").append(DateTimeUtil.rfc1123DateFormat(Instant.now())).append("\r\n");
@@ -75,12 +54,13 @@ public class JsonBinding {
         responseMessage.append("\r\n");
     }
 
-    private void appendPayload(StringBuilder responseMessage, String content) {
+    protected void appendPayload(StringBuilder responseMessage, String content) {
         if (content.isBlank()) {
             return;
         }
 
         responseMessage.append(content);
     }
+
 
 }

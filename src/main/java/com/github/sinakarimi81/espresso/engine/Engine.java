@@ -15,6 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.net.URLDecoder;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
@@ -23,10 +24,7 @@ import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -157,7 +155,7 @@ public class Engine {
             ByteBuffer buffer = ByteBuffer.allocate(4096); // start with 4 KB
             StringBuilder requestBuilder = new StringBuilder();
 
-            getPathAndHeadersFromChannel(channel, buffer, requestBuilder);
+            getMessageFromChannel(channel, buffer, requestBuilder);
             if (requestBuilder.isEmpty()) {
                 buffer.clear();
                 channel.close();
@@ -175,15 +173,24 @@ public class Engine {
 
             var body = parseRequestBody(channel, buffer, parsedHeaders, requestBuilder);
 
+            var formValues = parseFromValues(body, parsedHeaders);
+            if (!formValues.isEmpty()) {
+                // so the form data is not seen in the payload of the request
+                body = "";
+            }
+
             var pathVariablesAndHandlerTuple = extractPathVariablesAndReturnHandler(method, path);
             Map<String, String> pathVariables = pathVariablesAndHandlerTuple.left();
             Handler handler = pathVariablesAndHandlerTuple.right();
 
             var request = new Request(
-                    parsedHeaders, new PathVariables(pathVariables),
-                    new Query(queryParams), body
+                    parsedHeaders,
+                    new PathVariables(pathVariables),
+                    new Query(queryParams),
+                    new FromValues(formValues),
+                    body // the remainder is the body
             );
-            var response = new Response(channel, methodPathQueryTriple.left());
+            var response = new Response(channel, method);
             var context = new Context(request, response);
 
             boolean serverClose = checkForTimeout(parsedHeaders, channel);
@@ -200,7 +207,7 @@ public class Engine {
         }
     }
 
-    private void getPathAndHeadersFromChannel(SocketChannel channel, ByteBuffer buffer, StringBuilder requestBuilder) throws IOException {
+    private void getMessageFromChannel(SocketChannel channel, ByteBuffer buffer, StringBuilder requestBuilder) throws IOException {
         while (channel.read(buffer) > 0) {
             buffer.flip();
             byte[] data = new byte[buffer.remaining()];
@@ -232,6 +239,33 @@ public class Engine {
         return params;
     }
 
+    private Map<String, List<String>> parseFromValues(String body, Headers parsedHeaders) {
+        if (!parsedHeaders.containsHeader("Content-Type") || !parsedHeaders.getHeader("Content-Type").contains("application/x-www-form-urlencoded")) {
+            return Map.of();
+        }
+
+        if (body.isBlank()) {
+            return Map.of();
+        }
+
+        var params = new HashMap<String, List<String>>();
+        for (String pair : body.split("&")) {
+            // regex is applied once, meaning the result only has two elements -> key and value
+            String[] kv = pair.split("=", 2);
+
+            String key = URLDecoder.decode(kv[0], StandardCharsets.UTF_8);
+            String value = kv.length > 1
+                    ? URLDecoder.decode(kv[1], StandardCharsets.UTF_8)
+                    : "";
+
+            if (value.isBlank()) continue;
+
+            params.computeIfAbsent(key, k -> new ArrayList<>()).add(value);
+        }
+
+        return params;
+    }
+
     private Tuple<Map<String, String>, Handler> extractPathVariablesAndReturnHandler(String method, String urlPath) {
         var pathVars = new HashMap<String, String>();
 
@@ -253,8 +287,11 @@ public class Engine {
             throw new VersionNotSupportedException(String.format("version %s is not supported by Espresso", version));
         }
 
-        String query = path.contains("?") ? path.substring(path.indexOf("?") + 1) : "";
-        path = path.substring(0, path.indexOf("?"));
+        String query = "";
+        if (path.contains("?")) {
+            query = path.substring(path.indexOf("?") + 1);
+            path = path.substring(0, path.indexOf("?"));
+        }
 
         requestBuilder.delete(0, requestUrlEnd + 2); // so next we have to only parse headers, 2 is \r\n length
         return Triple.of(method, path, query);
@@ -313,25 +350,47 @@ public class Engine {
                                     Headers headers, StringBuilder requestBuilder) throws IOException {
         //TODO: another branch for chunked encoding
         if (headers.containsHeader("Content-Length")) {
-            int missing = Integer.parseInt(headers.getHeader("Content-Length").getFirst());
+            int contentLength = Integer.parseInt(headers.getHeader("Content-Length").getFirst());
 
-            // if not enough, keep reading
-            while (missing > 0 && channel.read(buffer) > 0) {
-                buffer.flip();
-                byte[] data = new byte[buffer.remaining()];
-                buffer.get(data);
-                requestBuilder.append(new String(data, StandardCharsets.UTF_8));
-                buffer.clear();
-                missing -= data.length;
+            // Account for any body bytes already read during header parsing
+            String existingBody = requestBuilder.toString();
+            int alreadyRead = existingBody.length();
+            if (alreadyRead >= contentLength) {
+                // We accidentally read the whole body (or more) while reading headers
+                String body = existingBody.substring(0, contentLength);
+                requestBuilder.delete(0, requestBuilder.length());
+                return body;
             }
 
-            // now full body
-            String body = requestBuilder.toString();
+            int remaining = contentLength - alreadyRead;
+            requestBuilder.setLength(0);  // Clear for the remaining read
+
+            // Temporarily switch to blocking mode to ensure we read all expected bytes
+            boolean wasBlocking = channel.isBlocking();
+            channel.configureBlocking(true);
+            try {
+                while (remaining > 0) {
+                    buffer.clear();
+                    int bytesRead = channel.read(buffer);
+                    if (bytesRead == -1) {
+                        break; // EOF – client closed connection prematurely
+                    }
+                    buffer.flip();
+                    byte[] data = new byte[buffer.remaining()];
+                    buffer.get(data);
+                    requestBuilder.append(new String(data, StandardCharsets.UTF_8));
+                    remaining -= data.length;
+                }
+            } finally {
+                channel.configureBlocking(wasBlocking); // Restore original mode
+            }
+
+            String body = existingBody + requestBuilder.toString();
             requestBuilder.delete(0, requestBuilder.length());
             return body;
-        } else {
-            return "";
         }
+
+        return "";
     }
 
     private void checkForConnectionClosure(boolean serverClose, Headers requestHeaders, SocketChannel channel) throws IOException {
@@ -379,7 +438,7 @@ public class Engine {
     }
 
     private void sendError(SocketChannel channel, Exception e, HttpStatus status, Map<String, Object> payload) {
-        String jsonify = Bindings.json().jsonify(HttpMethod.GET_METHOD, status, Map.of(), payload);
+        String jsonify = Bindings.json().serialize(HttpMethod.GET_METHOD, status, Map.of(), payload);
         if (channel.isOpen()) {
             try {
                 ByteBuffer src = ByteBuffer.wrap(jsonify.getBytes(StandardCharsets.UTF_8));

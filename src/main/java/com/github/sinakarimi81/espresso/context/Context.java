@@ -19,8 +19,4 @@ public class Context {
         return response;
     }
 
-    public <T> T jsonPayload(Class<T> type) {
-        return null;
-    }
-
 }
