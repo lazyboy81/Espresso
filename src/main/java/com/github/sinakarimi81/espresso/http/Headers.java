@@ -21,20 +21,16 @@ public class Headers {
     }
 
     public void addHeader(String name, String value) {
-        if (containsHeader(name)) {
-            List<String> strings = headers.get(name);
-            strings.add(value);
-            headers.put(name, strings);
-        } else {
-            var strings = new ArrayList<String>();
-            strings.add(value);
-            headers.put(name, strings);
-        }
-
+        headers.computeIfAbsent(name, key -> new ArrayList<>()).add(value);
     }
 
     public List<String> getHeader(String name) {
-        return headers.get(name);
+        return headers.getOrDefault(name, List.of());
+    }
+
+    public boolean hasValue(String name, String value) {
+        List<String> headerValues = getHeader(name);
+        return headerValues.contains(value);
     }
 
     public Map<String, List<String>> getAll() {

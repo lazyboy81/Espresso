@@ -1,11 +1,11 @@
 package com.github.sinakarimi81.espresso.binding.impl;
 
-import com.github.sinakarimi81.espresso.binding.Render;
+import com.github.sinakarimi81.espresso.binding.Serialization;
 import com.github.sinakarimi81.espresso.binding.config.ThymeleafConfig;
 import com.github.sinakarimi81.espresso.binding.dto.HtmlData;
 import org.thymeleaf.context.Context;
 
-public class HtmlBinding extends Render {
+public class HtmlRender extends Serialization {
 
     private static final String CONTENT_TYPE = "text/html; charset=utf-8";
 

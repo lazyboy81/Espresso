@@ -1,7 +1,7 @@
 package com.github.sinakarimi81.espresso.context;
 
 import com.github.sinakarimi81.espresso.binding.Bindings;
-import com.github.sinakarimi81.espresso.http.FromValues;
+import com.github.sinakarimi81.espresso.http.FormValues;
 import com.github.sinakarimi81.espresso.http.Headers;
 import com.github.sinakarimi81.espresso.http.PathVariables;
 import com.github.sinakarimi81.espresso.http.Query;
@@ -16,7 +16,7 @@ public class Request {
     private Headers headers;
     private PathVariables pathVariables;
     private Query query;
-    private FromValues formValues;
+    private FormValues formValues;
     private String payload;
 
     /**

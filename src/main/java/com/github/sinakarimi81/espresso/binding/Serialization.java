@@ -9,7 +9,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Map;
 
-public abstract class Render {
+public abstract class Serialization {
 
     public abstract String convertResponsePayload(Object payload);
     public abstract String contentTypeValue();

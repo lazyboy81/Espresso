@@ -1,8 +1,8 @@
 package com.github.sinakarimi81.espresso.binding.impl;
 
-import com.github.sinakarimi81.espresso.binding.Render;
+import com.github.sinakarimi81.espresso.binding.Serialization;
 
-public class TextBinding extends Render {
+public class TextBinding extends Serialization {
 
     private static final String CONTENT_TYPE = "text/plain; charset=utf-8";
 

@@ -9,13 +9,11 @@ import com.github.sinakarimi81.espresso.handler.Handler;
 import com.github.sinakarimi81.espresso.http.*;
 import com.github.sinakarimi81.espresso.routing.RoutingGroups;
 import com.github.sinakarimi81.espresso.util.DateTimeUtil;
-import com.github.sinakarimi81.espresso.util.Triple;
 import com.github.sinakarimi81.espresso.util.Tuple;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.net.URLDecoder;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
@@ -28,8 +26,6 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-
-import static com.github.sinakarimi81.espresso.http.HttpVersion.SUPPORTED_VERSIONS;
 
 @Slf4j
 public class Engine {
@@ -131,11 +127,12 @@ public class Engine {
                 SocketChannel accepted = serverSocket.accept();
                 if (accepted != null) {
                     accepted.configureBlocking(false);
-                    accepted.register(selector, SelectionKey.OP_READ);
+                    accepted.register(selector, SelectionKey.OP_READ, new ConnectionContext());
                 }
             } else if (key.isReadable()) {
                 SocketChannel channel = (SocketChannel) key.channel();
-                handleAcceptedSocketChannel(channel);
+                ConnectionContext ctx = (ConnectionContext) key.attachment();
+                handleAcceptedSocketChannel(channel, ctx);
             }
         } catch (Exception e) {
             // Log the error and cancel the specific key, DO NOT throw RuntimeException
@@ -150,120 +147,60 @@ public class Engine {
         }
     }
 
-    public void handleAcceptedSocketChannel(SocketChannel channel) {
+    public void handleAcceptedSocketChannel(SocketChannel channel, ConnectionContext ctx) {
         try {
-            ByteBuffer buffer = ByteBuffer.allocate(4096); // start with 4 KB
-            StringBuilder requestBuilder = new StringBuilder();
-
-            getMessageFromChannel(channel, buffer, requestBuilder);
-            if (requestBuilder.isEmpty()) {
-                buffer.clear();
-                channel.close();
-                return;
+            ctx.readFromChannel(channel);
+            switch (ctx.getState()) {
+                case PARSING_HEADER: {
+                    ctx.parseUrlAndHeaders();
+                    if (ctx.hasNoBody()) {
+                        processRequest(channel, ctx);
+                    }
+                }
+                case PARSING_BODY: {
+                    ctx.readAndParseBody(channel);
+                    processRequest(channel, ctx);
+                    break;
+                }
+                case PROCESSING_REQUEST: {
+                    // to avoid trying to read the body again and again
+                    break;
+                }
             }
-
-            var methodPathQueryTriple = parseUrlFromRequest(requestBuilder);
-            String method = methodPathQueryTriple.left();
-            String path = methodPathQueryTriple.middle();
-            String query = methodPathQueryTriple.right();
-
-            var queryParams = extractQueryParams(query);
-            var parsedHeaders = parseHeaders(requestBuilder);
-            validateHeaders(parsedHeaders);
-
-            var body = parseRequestBody(channel, buffer, parsedHeaders, requestBuilder);
-
-            var formValues = parseFromValues(body, parsedHeaders);
-            if (!formValues.isEmpty()) {
-                // so the form data is not seen in the payload of the request
-                body = "";
-            }
-
-            var pathVariablesAndHandlerTuple = extractPathVariablesAndReturnHandler(method, path);
-            Map<String, String> pathVariables = pathVariablesAndHandlerTuple.left();
-            Handler handler = pathVariablesAndHandlerTuple.right();
-
-            var request = new Request(
-                    parsedHeaders,
-                    new PathVariables(pathVariables),
-                    new Query(queryParams),
-                    new FromValues(formValues),
-                    body // the remainder is the body
-            );
-            var response = new Response(channel, method);
-            var context = new Context(request, response);
-
-            boolean serverClose = checkForTimeout(parsedHeaders, channel);
-            if (serverClose) {
-                context.response().header("Connection", "close");
-            }
-
-            handler.handle(context);
-
-            checkForConnectionClosure(serverClose, parsedHeaders, channel);
         } catch (Exception e) {
             log.error("an exception occurred while handling the accepted socket", e);
+            ctx.reset();
             parseAndSendErrors(e, channel);
         }
     }
 
-    private void getMessageFromChannel(SocketChannel channel, ByteBuffer buffer, StringBuilder requestBuilder) throws IOException {
-        while (channel.read(buffer) > 0) {
-            buffer.flip();
-            byte[] data = new byte[buffer.remaining()];
-            buffer.get(data);
-            requestBuilder.append(new String(data, StandardCharsets.UTF_8));
-            buffer.clear();
+    private void processRequest(SocketChannel channel, ConnectionContext ctx) throws Exception {
+        var pathVariablesAndHandlerTuple = extractPathVariablesAndReturnHandler(ctx.getMethod(), ctx.getPath());
+        Map<String, String> pathVariables = pathVariablesAndHandlerTuple.left();
+        Handler handler = pathVariablesAndHandlerTuple.right();
 
-            // check if we've read the end of headers
-            int headerEnd = requestBuilder.indexOf("\r\n\r\n");
-            if (headerEnd != -1) {
-                break; // we have all headers
-            }
-        }
-    }
+        var request = new Request(
+                ctx.getHeaders(),
+                new PathVariables(pathVariables),
+                ctx.getQueryParams(),
+                ctx.getFormValues(),
+                ctx.getBody()
+        );
 
-    private Map<String, String> extractQueryParams(String query) {
-        var params = new HashMap<String, String>();
 
-        if (query.isEmpty()) {
-            return params;
-        }
+        var response = new Response(channel, ctx.getMethod());
+        var context = new Context(request, response);
 
-        for (String param : query.split("&")) {
-            String[] keyValue = param.split("=");
-            // handles the case where the query is like key= (basically a key is present with no value)
-            params.put(keyValue[0], keyValue.length != 2 && param.indexOf("=") != 0 ? "" : keyValue[1]);
+        ctx.reset(); // don't need it anymore
+
+        boolean serverClose = checkForTimeout(request.headers(), channel);
+        if (serverClose) {
+            context.response().header("Connection", "close");
         }
 
-        return params;
-    }
+        handler.handle(context);
 
-    private Map<String, List<String>> parseFromValues(String body, Headers parsedHeaders) {
-        if (!parsedHeaders.containsHeader("Content-Type") || !parsedHeaders.getHeader("Content-Type").contains("application/x-www-form-urlencoded")) {
-            return Map.of();
-        }
-
-        if (body.isBlank()) {
-            return Map.of();
-        }
-
-        var params = new HashMap<String, List<String>>();
-        for (String pair : body.split("&")) {
-            // regex is applied once, meaning the result only has two elements -> key and value
-            String[] kv = pair.split("=", 2);
-
-            String key = URLDecoder.decode(kv[0], StandardCharsets.UTF_8);
-            String value = kv.length > 1
-                    ? URLDecoder.decode(kv[1], StandardCharsets.UTF_8)
-                    : "";
-
-            if (value.isBlank()) continue;
-
-            params.computeIfAbsent(key, k -> new ArrayList<>()).add(value);
-        }
-
-        return params;
+        checkForConnectionClosure(serverClose, request.headers(), channel);
     }
 
     private Tuple<Map<String, String>, Handler> extractPathVariablesAndReturnHandler(String method, String urlPath) {
@@ -272,60 +209,6 @@ public class Engine {
         Handler handlerForPath = groups.getHandlerForPath(method, urlPath, pathVars);
 
         return Tuple.of(pathVars, handlerForPath);
-    }
-
-    private Triple<String, String, String> parseUrlFromRequest(StringBuilder requestBuilder) {
-        int requestUrlEnd = requestBuilder.indexOf("\r\n");
-        String requestLine = requestBuilder.substring(0, requestUrlEnd);
-        String[] requestLineParts = requestLine.split(" ");
-        String method = requestLineParts[0];
-        String path = requestLineParts[1];
-        String version = requestLineParts[2];
-
-        if (!SUPPORTED_VERSIONS.contains(version)) {
-            log.error("version {} is not supported by Espresso", version);
-            throw new VersionNotSupportedException(String.format("version %s is not supported by Espresso", version));
-        }
-
-        String query = "";
-        if (path.contains("?")) {
-            query = path.substring(path.indexOf("?") + 1);
-            path = path.substring(0, path.indexOf("?"));
-        }
-
-        requestBuilder.delete(0, requestUrlEnd + 2); // so next we have to only parse headers, 2 is \r\n length
-        return Triple.of(method, path, query);
-    }
-
-    private Headers parseHeaders(StringBuilder requestBuilder) {
-        Headers result = new Headers();
-
-        int headerEnd = requestBuilder.indexOf("\r\n\r\n");
-        String headerPart = requestBuilder.substring(0, headerEnd);
-
-        for (String header : headerPart.split("\r\n")) {
-            String[] keyValue = header.split(": ");
-            if (keyValue[1].contains(";")) {
-                for (String val : keyValue[1].split(";")) {
-                    result.addHeader(keyValue[0], val);
-                }
-            } else {
-                result.addHeader(keyValue[0], keyValue[1]);
-            }
-        }
-
-        requestBuilder.delete(0, headerEnd + 4); // so the next time we fill request builder only body is left, 4 is \r\n\r\n length
-        return result;
-    }
-
-    private void validateHeaders(Headers headers) {
-        if (headers.containsHeader("Upgrade")) {
-            List<String> upgrade = headers.getHeader("Upgrade");
-            if (upgrade.contains("h2c")) {
-                log.error("request contains Upgrade: h2c header. http version 2 is not supported by Espresso");
-                throw new VersionNotSupportedException("request contains Upgrade: h2c header, http version 2 is not supported by Espresso");
-            }
-        }
     }
 
     private boolean checkForTimeout(Headers headers, SocketChannel channel) throws IOException {
@@ -344,53 +227,6 @@ public class Engine {
 
     private boolean isRequestKeepAlivePassThreshold(Instant lastKeepAliveRequest, Integer keepAliveThreshold) {
         return Duration.between(lastKeepAliveRequest, Instant.now()).toMillis() > keepAliveThreshold;
-    }
-
-    private String parseRequestBody(SocketChannel channel, ByteBuffer buffer,
-                                    Headers headers, StringBuilder requestBuilder) throws IOException {
-        //TODO: another branch for chunked encoding
-        if (headers.containsHeader("Content-Length")) {
-            int contentLength = Integer.parseInt(headers.getHeader("Content-Length").getFirst());
-
-            // Account for any body bytes already read during header parsing
-            String existingBody = requestBuilder.toString();
-            int alreadyRead = existingBody.length();
-            if (alreadyRead >= contentLength) {
-                // We accidentally read the whole body (or more) while reading headers
-                String body = existingBody.substring(0, contentLength);
-                requestBuilder.delete(0, requestBuilder.length());
-                return body;
-            }
-
-            int remaining = contentLength - alreadyRead;
-            requestBuilder.setLength(0);  // Clear for the remaining read
-
-            // Temporarily switch to blocking mode to ensure we read all expected bytes
-            boolean wasBlocking = channel.isBlocking();
-            channel.configureBlocking(true);
-            try {
-                while (remaining > 0) {
-                    buffer.clear();
-                    int bytesRead = channel.read(buffer);
-                    if (bytesRead == -1) {
-                        break; // EOF – client closed connection prematurely
-                    }
-                    buffer.flip();
-                    byte[] data = new byte[buffer.remaining()];
-                    buffer.get(data);
-                    requestBuilder.append(new String(data, StandardCharsets.UTF_8));
-                    remaining -= data.length;
-                }
-            } finally {
-                channel.configureBlocking(wasBlocking); // Restore original mode
-            }
-
-            String body = existingBody + requestBuilder.toString();
-            requestBuilder.delete(0, requestBuilder.length());
-            return body;
-        }
-
-        return "";
     }
 
     private void checkForConnectionClosure(boolean serverClose, Headers requestHeaders, SocketChannel channel) throws IOException {

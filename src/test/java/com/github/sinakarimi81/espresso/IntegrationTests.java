@@ -108,7 +108,7 @@ public class IntegrationTests {
     }
 
     @Test
-    public void handlePostRequest() throws Exception {
+    public void handlePostRequest_JSON() throws Exception {
         List<Item> items = new ArrayList<>();
 
         Espresso espresso = Espresso.getDefault();
