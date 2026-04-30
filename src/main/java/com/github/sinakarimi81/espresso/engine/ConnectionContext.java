@@ -55,6 +55,8 @@ public class ConnectionContext {
 
     public int readFromChannel(SocketChannel channel) throws IOException {
         int read = channel.read(buffer);
+        if (read <= 0) return read;
+
         buffer.flip();
         byte[] data = new byte[buffer.remaining()];
         buffer.get(data);
@@ -199,12 +201,13 @@ public class ConnectionContext {
     }
 
     public void reset() {
+        this.state = ConnectionState.PARSING_HEADER;
         buffer.position(0);
         messagePayload.setLength(0);
         queryParams = null;
         headers = null;
         formValues = null;
-        contentBodyRead = -1;
+        contentBodyRead = 0;
         method = "";
         path = "";
         query = "";

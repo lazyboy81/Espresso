@@ -132,7 +132,11 @@ public class Engine {
             } else if (key.isReadable()) {
                 SocketChannel channel = (SocketChannel) key.channel();
                 ConnectionContext ctx = (ConnectionContext) key.attachment();
-                handleAcceptedSocketChannel(channel, ctx);
+                boolean ready = handleAcceptedSocketChannel(channel, ctx);
+
+                if (ready) {
+                    executorService.submit(() -> processRequest(channel, ctx));
+                }
             }
         } catch (Exception e) {
             // Log the error and cancel the specific key, DO NOT throw RuntimeException
@@ -147,60 +151,69 @@ public class Engine {
         }
     }
 
-    public void handleAcceptedSocketChannel(SocketChannel channel, ConnectionContext ctx) {
+    public boolean handleAcceptedSocketChannel(SocketChannel channel, ConnectionContext ctx) {
         try {
             ctx.readFromChannel(channel);
             switch (ctx.getState()) {
                 case PARSING_HEADER: {
                     ctx.parseUrlAndHeaders();
                     if (ctx.hasNoBody()) {
-                        processRequest(channel, ctx);
+                        return true;
                     }
+                    // we didn't put a break here for case when full body was read with the headers
                 }
                 case PARSING_BODY: {
                     ctx.readAndParseBody(channel);
-                    processRequest(channel, ctx);
-                    break;
+                    return true;
                 }
                 case PROCESSING_REQUEST: {
                     // to avoid trying to read the body again and again
                     break;
                 }
             }
+
+            return false;
         } catch (Exception e) {
             log.error("an exception occurred while handling the accepted socket", e);
             ctx.reset();
             parseAndSendErrors(e, channel);
+            return false;
         }
     }
 
-    private void processRequest(SocketChannel channel, ConnectionContext ctx) throws Exception {
-        var pathVariablesAndHandlerTuple = extractPathVariablesAndReturnHandler(ctx.getMethod(), ctx.getPath());
-        Map<String, String> pathVariables = pathVariablesAndHandlerTuple.left();
-        Handler handler = pathVariablesAndHandlerTuple.right();
+    private void processRequest(SocketChannel channel, ConnectionContext ctx) {
+        try {
+            var pathVariablesAndHandlerTuple = extractPathVariablesAndReturnHandler(ctx.getMethod(), ctx.getPath());
+            Map<String, String> pathVariables = pathVariablesAndHandlerTuple.left();
+            Handler handler = pathVariablesAndHandlerTuple.right();
 
-        var request = new Request(
-                ctx.getHeaders(),
-                new PathVariables(pathVariables),
-                ctx.getQueryParams(),
-                ctx.getFormValues(),
-                ctx.getBody()
-        );
+            var request = new Request(
+                    ctx.getHeaders(),
+                    new PathVariables(pathVariables),
+                    ctx.getQueryParams(),
+                    ctx.getFormValues(),
+                    ctx.getBody()
+            );
 
 
-        var response = new Response(channel, ctx.getMethod());
-        var context = new Context(request, response);
+            var response = new Response(channel, ctx.getMethod());
+            var context = new Context(request, response);
 
-        ctx.reset(); // don't need it anymore
+            ctx.reset(); // don't need it anymore
 
-        boolean serverClose = checkForTimeout(request.headers(), channel);
-        if (serverClose) {
-            context.response().header("Connection", "close");
+            boolean serverClose = checkForTimeout(request.headers(), channel);
+            if (serverClose) {
+                context.response().header("Connection", "close");
+            }
+
+            handler.handle(context);
+
+            checkForConnectionClosure(serverClose, request.headers(), channel, ctx);
+        }  catch (Exception e) {
+            log.error("an exception occurred while processing the request", e);
+            ctx.reset();
+            parseAndSendErrors(e, channel);
         }
-
-        handler.handle(context);
-
-        checkForConnectionClosure(serverClose, request.headers(), channel);
     }
 
     private Tuple<Map<String, String>, Handler> extractPathVariablesAndReturnHandler(String method, String urlPath) {
@@ -229,7 +242,7 @@ public class Engine {
         return Duration.between(lastKeepAliveRequest, Instant.now()).toMillis() > keepAliveThreshold;
     }
 
-    private void checkForConnectionClosure(boolean serverClose, Headers requestHeaders, SocketChannel channel) throws IOException {
+    private void checkForConnectionClosure(boolean serverClose, Headers requestHeaders, SocketChannel channel, ConnectionContext ctx) throws IOException {
         if (serverClose) {
             channel.close();
             return;
@@ -250,7 +263,7 @@ public class Engine {
 
             // Re-register ONLY if the channel is still open
             if (selector.isOpen() && channel.isOpen()) {
-                channel.register(selector, SelectionKey.OP_READ);
+                channel.register(selector, SelectionKey.OP_READ, ctx);
             }
         }
     }

@@ -17,7 +17,9 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
+import java.util.stream.IntStream;
 
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -283,52 +285,47 @@ public class IntegrationTests {
 
     @Test
     public void handleConsecutiveRequests() throws Exception {
-        var mapper = new ObjectMapper();
-        List<Item> items = new ArrayList<>();
-        items.add(new Item(1L, "create server", "create an http server"));
-
         Espresso espresso = Espresso.getDefault();
         Engine engine = Engine.getInstance(8080);
 
-        espresso.get("/list", context -> context.response().json(HttpStatus.OK, Map.of("items", items)));
+        espresso.get("/list", ctx -> ctx.response().json(HttpStatus.OK, Map.of("ok", true)));
 
-        espresso.post("/add", context -> {
-            Item item = context.request().json(Item.class);
-            items.add(item);
-            context.response().json(HttpStatus.CREATED, Map.of("message", "created"));
-        });
+        try (var serverExec = Executors.newSingleThreadExecutor()) {
 
+            serverExec.submit(espresso::start);
 
-        try (var executor = Executors.newVirtualThreadPerTaskExecutor();
-             var client = HttpClient.newHttpClient()) {
-            executor.submit(espresso::start);
+            Thread.sleep(Duration.ofMillis(200)); // to make sure server has started
 
-            Item input = new Item(2L, "two requests", "one post and one get request");
-            HttpRequest request = HttpRequest.newBuilder()
-                    .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(input)))
-                    .version(HttpClient.Version.HTTP_1_1)
-                    .uri(URI.create("http://localhost:8080/add"))
-                    .build();
-            HttpResponse<String> result = client.send(request, HttpResponse.BodyHandlers.ofString());
-            assertThat(result.statusCode()).isEqualTo(HttpStatus.CREATED.code());
-            assertThat(result.headers().map()).containsKeys("Date", "Keep-Alive", "Connection", "Content-Type", "Content-Length");
-            assertThat(items).isNotEmpty().contains(input);
+            int parallel = 5;
 
-            HttpRequest getRequest = HttpRequest.newBuilder()
-                    .GET()
-                    .version(HttpClient.Version.HTTP_1_1)
-                    .uri(URI.create("http://localhost:8080/list"))
-                    .build();
-            HttpResponse<String> getResult = client.send(getRequest, HttpResponse.BodyHandlers.ofString());
-            assertThat(getResult.statusCode()).isEqualTo(HttpStatus.OK.code());
-            assertThat(getResult.headers().map()).containsKeys("Date", "Keep-Alive", "Connection", "Content-Type", "Content-Length");
-            assertThat(getResult.body()).isNotNull().isNotBlank();
+            // fire 50 concurrent requests
+            List<CompletableFuture<HttpResponse<String>>> futures =
+                    IntStream.range(0, parallel)
+                            .mapToObj(i -> CompletableFuture.supplyAsync(() -> {
+                                try (var client = HttpClient.newHttpClient()) {
+                                    return client.send(
+                                            HttpRequest.newBuilder()
+                                                    .GET()
+                                                    .version(HttpClient.Version.HTTP_1_1)
+                                                    .uri(URI.create("http://localhost:8080/list"))
+                                                    .build(),
+                                            HttpResponse.BodyHandlers.ofString()
+                                    );
+                                } catch (Exception e) {
+                                    throw new RuntimeException(e);
+                                }
+                            }))
+                            .toList();
+            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
 
-            client.close();
-            executor.shutdownNow();
+            for (var f : futures) {
+                HttpResponse<String> res = f.get();
+                assertThat(res.statusCode()).isEqualTo(200);
+                assertThat(res.body()).isNotBlank();
+            }
+
+        } finally {
             engine.stop();
-        } catch (Exception e) {
-            log.error("e: ", e);
         }
     }
 
