@@ -3,7 +3,7 @@ package com.github.sinakarimi81.espresso;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 import com.github.sinakarimi81.espresso.dto.Item;
-import com.github.sinakarimi81.espresso.engine.Engine;
+import com.github.sinakarimi81.espresso.engine.EspressoEngine;
 import com.github.sinakarimi81.espresso.http.HttpStatus;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Test;
@@ -31,14 +31,13 @@ public class IntegrationTests {
     public void handleGetRequest() throws Exception {
         List<Item> items = List.of(new Item(1L, "create server", "create an http server"));
 
-        Espresso espresso = Espresso.getDefault();
-        Engine engine = Engine.getInstance(8080);
+        EspressoEngine espresso = Espresso.getDefault();
 
         espresso.get("/list", context -> context.response().json(HttpStatus.OK, Map.of("items", items)));
 
         try (var executor = Executors.newCachedThreadPool();
              var client = HttpClient.newHttpClient()) {
-            executor.submit(espresso::start);
+            executor.submit(Espresso::run);
 
             HttpRequest request = HttpRequest.newBuilder()
                     .GET()
@@ -48,7 +47,7 @@ public class IntegrationTests {
             HttpResponse<String> result = client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
             client.shutdownNow();
             executor.shutdownNow();
-            engine.stop();
+            espresso.stop();
             assertThat(result.statusCode()).isEqualTo(HttpStatus.OK.code());
             assertThat(result.headers().map()).containsKeys("Date", "Connection", "Content-Type", "Content-Length");
             assertThat(result.body()).isNotNull().isNotBlank();
@@ -57,14 +56,13 @@ public class IntegrationTests {
 
     @Test
     public void handleGetRequest_HTML() throws Exception {
-        Espresso espresso = Espresso.getDefault();
-        Engine engine = Engine.getInstance(8080);
+        EspressoEngine espresso = Espresso.getDefault();
 
         espresso.get("/hello", context -> context.response().html(HttpStatus.OK, "index"));
 
         try (var executor = Executors.newCachedThreadPool();
              var client = HttpClient.newHttpClient()) {
-            executor.submit(espresso::start);
+            executor.submit(Espresso::run);
 
             HttpRequest request = HttpRequest.newBuilder()
                     .GET()
@@ -74,7 +72,7 @@ public class IntegrationTests {
             HttpResponse<String> result = client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
             client.shutdownNow();
             executor.shutdownNow();
-            engine.stop();
+            espresso.stop();
             assertThat(result.statusCode()).isEqualTo(HttpStatus.OK.code());
             assertThat(result.headers().map()).containsKeys("Date", "Connection", "Content-Type", "Content-Length");
             assertThat(result.headers().map()).containsEntry("Content-Type", List.of("text/html; charset=utf-8"));
@@ -86,14 +84,13 @@ public class IntegrationTests {
     public void handleHeadRequest() throws Exception {
         List<Item> items = List.of(new Item(1L, "create server", "create an http server"));
 
-        Espresso espresso = Espresso.getDefault();
-        Engine engine = Engine.getInstance(8080);
+        EspressoEngine espresso = Espresso.getDefault();
         espresso.head("/list", context -> context.response().json(HttpStatus.OK, Map.of("items", items)));
 
 
         try (var executor = Executors.newVirtualThreadPerTaskExecutor();
              var client = HttpClient.newHttpClient()) {
-            executor.submit(espresso::start);
+            executor.submit(Espresso::run);
 
             HttpRequest request = HttpRequest.newBuilder()
                     .HEAD()
@@ -102,7 +99,7 @@ public class IntegrationTests {
                     .build();
             HttpResponse<Void> result = client.send(request, HttpResponse.BodyHandlers.discarding());
             executor.shutdownNow();
-            engine.stop();
+            espresso.stop();
             assertThat(result.statusCode()).isEqualTo(HttpStatus.OK.code());
             assertThat(result.headers().map()).containsKeys("Date", "Connection", "Content-Type", "Content-Length");
             assertThat(result.body()).isNull();
@@ -113,8 +110,7 @@ public class IntegrationTests {
     public void handlePostRequest_JSON() throws Exception {
         List<Item> items = new ArrayList<>();
 
-        Espresso espresso = Espresso.getDefault();
-        Engine engine = Engine.getInstance(8080);
+        EspressoEngine espresso = Espresso.getDefault();
         espresso.post("/add", context -> {
             Item item = context.request().json(Item.class);
             items.add(item);
@@ -124,7 +120,7 @@ public class IntegrationTests {
 
         try (var executor = Executors.newVirtualThreadPerTaskExecutor();
              var client = HttpClient.newHttpClient()) {
-            executor.submit(espresso::start);
+            executor.submit(Espresso::run);
 
             Item input = new Item(1L, "create server", "create an http server");
             HttpRequest request = HttpRequest.newBuilder()
@@ -134,7 +130,7 @@ public class IntegrationTests {
                     .build();
             HttpResponse<String> result = client.send(request, HttpResponse.BodyHandlers.ofString());
             executor.shutdownNow();
-            engine.stop();
+            espresso.stop();
             assertThat(result.statusCode()).isEqualTo(HttpStatus.CREATED.code());
             assertThat(result.headers().map()).containsKeys("Date", "Connection", "Content-Type", "Content-Length");
             assertThat(items).isNotEmpty().contains(input);
@@ -145,8 +141,7 @@ public class IntegrationTests {
     public void handlePostRequest_XML() throws Exception {
         List<Item> items = new ArrayList<>();
 
-        Espresso espresso = Espresso.getDefault();
-        Engine engine = Engine.getInstance(8080);
+        EspressoEngine espresso = Espresso.getDefault();
         espresso.post("/add", context -> {
             Item item = context.request().xml(Item.class);
             items.add(item);
@@ -156,7 +151,7 @@ public class IntegrationTests {
 
         try (var executor = Executors.newVirtualThreadPerTaskExecutor();
              var client = HttpClient.newHttpClient()) {
-            executor.submit(espresso::start);
+            executor.submit(Espresso::run);
 
             Item input = new Item(1L, "create server", "create an http server");
             HttpRequest request = HttpRequest.newBuilder()
@@ -166,7 +161,7 @@ public class IntegrationTests {
                     .build();
             HttpResponse<String> result = client.send(request, HttpResponse.BodyHandlers.ofString());
             executor.shutdownNow();
-            engine.stop();
+            espresso.stop();
             assertThat(result.statusCode()).isEqualTo(HttpStatus.CREATED.code());
             assertThat(result.headers().map()).containsKeys("Date", "Connection", "Content-Type", "Content-Length");
             assertThat(result.headers().map()).containsEntry("Content-Type", List.of("application/xml; charset=utf-8"));
@@ -178,8 +173,7 @@ public class IntegrationTests {
     public void handlePostRequest_Text() throws Exception {
         List<Item> items = new ArrayList<>();
 
-        Espresso espresso = Espresso.getDefault();
-        Engine engine = Engine.getInstance(8080);
+        EspressoEngine espresso = Espresso.getDefault();
         espresso.post("/add", context -> {
             String text = context.request().text();
             XmlMapper m = new XmlMapper();
@@ -191,7 +185,7 @@ public class IntegrationTests {
 
         try (var executor = Executors.newVirtualThreadPerTaskExecutor();
              var client = HttpClient.newHttpClient()) {
-            executor.submit(espresso::start);
+            executor.submit(Espresso::run);
 
             Item input = new Item(1L, "create server", "create an http server");
             HttpRequest request = HttpRequest.newBuilder()
@@ -201,7 +195,7 @@ public class IntegrationTests {
                     .build();
             HttpResponse<String> result = client.send(request, HttpResponse.BodyHandlers.ofString());
             executor.shutdownNow();
-            engine.stop();
+            espresso.stop();
             assertThat(result.statusCode()).isEqualTo(HttpStatus.CREATED.code());
             assertThat(result.headers().map()).containsKeys("Date", "Connection", "Content-Type", "Content-Length");
             assertThat(result.headers().map()).containsEntry("Content-Type", List.of("text/plain; charset=utf-8"));
@@ -217,8 +211,7 @@ public class IntegrationTests {
         List<String> names = new ArrayList<>();
         List<String> roles = new ArrayList<>();
 
-        Espresso espresso = Espresso.getDefault();
-        Engine engine = Engine.getInstance(8080);
+        EspressoEngine espresso = Espresso.getDefault();
         espresso.post("/form", context -> {
             List<String> tags = context.request().formValue("tag");
             checkItems.addAll(tags);
@@ -230,7 +223,7 @@ public class IntegrationTests {
 
         try (var executor = Executors.newVirtualThreadPerTaskExecutor();
              var client = HttpClient.newHttpClient()) {
-            executor.submit(espresso::start);
+            executor.submit(Espresso::run);
 
             HttpRequest request = HttpRequest.newBuilder()
                     .POST(HttpRequest.BodyPublishers.ofString("tag=java&tag=nio&tag=http&name=John+Doe&role=admin+%26+developer&key="))
@@ -240,7 +233,7 @@ public class IntegrationTests {
                     .build();
             HttpResponse<String> result = client.send(request, HttpResponse.BodyHandlers.ofString());
             executor.shutdownNow();
-            engine.stop();
+            espresso.stop();
             assertThat(result.statusCode()).isEqualTo(HttpStatus.CREATED.code());
             assertThat(result.headers().map()).containsKeys("Date", "Connection", "Content-Type", "Content-Length");
             assertThat(checkItems).isNotEmpty().contains("java", "nio", "http");
@@ -254,8 +247,7 @@ public class IntegrationTests {
         var mapper = new ObjectMapper();
         List<Item> items = new ArrayList<>();
 
-        Espresso espresso = Espresso.getDefault();
-        Engine engine = Engine.getInstance(8080);
+        EspressoEngine espresso = Espresso.getDefault();
 
         espresso.post("/add", context -> {
             Item item = context.request().json(Item.class);
@@ -266,7 +258,7 @@ public class IntegrationTests {
 
         try (var executor = Executors.newVirtualThreadPerTaskExecutor();
              var client = HttpClient.newHttpClient()) {
-            executor.submit(espresso::start);
+            executor.submit(Espresso::run);
 
             Item input = new Item(1L, "create server", "create an http server");
             HttpRequest request = HttpRequest.newBuilder()
@@ -276,7 +268,7 @@ public class IntegrationTests {
                     .build();
             HttpResponse<Void> result = client.send(request, HttpResponse.BodyHandlers.discarding());
             executor.shutdownNow();
-            engine.stop();
+            espresso.stop();
             assertThat(result.statusCode()).isEqualTo(HttpStatus.NO_CONTENT.code());
             assertThat(result.headers().map()).containsKeys("Date", "Connection");
             assertThat(items).isNotEmpty().contains(input);
@@ -285,14 +277,13 @@ public class IntegrationTests {
 
     @Test
     public void handleConsecutiveRequests() throws Exception {
-        Espresso espresso = Espresso.getDefault();
-        Engine engine = Engine.getInstance(8080);
+        EspressoEngine espresso = Espresso.getDefault();
 
         espresso.get("/list", ctx -> ctx.response().json(HttpStatus.OK, Map.of("ok", true)));
 
         try (var serverExec = Executors.newSingleThreadExecutor()) {
 
-            serverExec.submit(espresso::start);
+            serverExec.submit(Espresso::run);
 
             Thread.sleep(Duration.ofMillis(200)); // to make sure server has started
 
@@ -325,18 +316,17 @@ public class IntegrationTests {
             }
 
         } finally {
-            engine.stop();
+            espresso.stop();
         }
     }
 
     @Test
     public void handlePathNotFoundException() throws Exception {
-        Espresso espresso = Espresso.getDefault();
-        Engine engine = Engine.getInstance(8080);
+        EspressoEngine espresso = Espresso.getDefault();
 
         try (var executor = Executors.newVirtualThreadPerTaskExecutor();
              var client = HttpClient.newHttpClient()) {
-            executor.submit(espresso::start);
+            executor.submit(Espresso::run);
 
             HttpRequest request = HttpRequest.newBuilder()
                     .GET()
@@ -346,7 +336,7 @@ public class IntegrationTests {
             HttpResponse<String> result = client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
             client.shutdownNow();
             executor.shutdownNow();
-            engine.stop();
+            espresso.stop();
             assertThat(result.statusCode()).isEqualTo(HttpStatus.NOT_FOUND.code());
             assertThat(result.headers().map()).containsKeys("Date", "Connection", "Content-Type", "Content-Length");
             assertThatJson(result.body()).isNotNull().isObject()
@@ -358,12 +348,11 @@ public class IntegrationTests {
 
     @Test
     public void handleVersionNotSupportedException() throws Exception {
-        Espresso espresso = Espresso.getDefault();
-        Engine engine = Engine.getInstance(8080);
+        EspressoEngine espresso = Espresso.getDefault();
 
         try (var executor = Executors.newVirtualThreadPerTaskExecutor();
              var client = HttpClient.newHttpClient()) {
-            executor.submit(espresso::start);
+            executor.submit(Espresso::run);
 
             HttpRequest request = HttpRequest.newBuilder()
                     .GET()
@@ -373,7 +362,7 @@ public class IntegrationTests {
             HttpResponse<String> result = client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
             client.shutdownNow();
             executor.shutdownNow();
-            engine.stop();
+            espresso.stop();
             assertThat(result.statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.code());
             assertThat(result.headers().map()).containsKeys("Date", "Connection", "Content-Type", "Content-Length");
             assertThatJson(result.body()).isNotNull().isObject()
@@ -385,8 +374,7 @@ public class IntegrationTests {
 
     @Test
     public void handle5xxException() throws Exception {
-        Espresso espresso = Espresso.getDefault();
-        Engine engine = Engine.getInstance(8080);
+        EspressoEngine espresso = Espresso.getDefault();
 
         espresso.get("/list", context -> {
             throw new Exception("throws exception");
@@ -394,7 +382,7 @@ public class IntegrationTests {
 
         try (var executor = Executors.newVirtualThreadPerTaskExecutor();
              var client = HttpClient.newHttpClient()) {
-            executor.submit(espresso::start);
+            executor.submit(Espresso::run);
 
             HttpRequest request = HttpRequest.newBuilder()
                     .GET()
@@ -404,7 +392,7 @@ public class IntegrationTests {
             HttpResponse<String> result = client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
             client.shutdownNow();
             executor.shutdownNow();
-            engine.stop();
+            espresso.stop();
             assertThat(result.statusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR.code());
             assertThat(result.headers().map()).containsKeys("Date", "Connection", "Content-Type", "Content-Length");
             assertThatJson(result.body()).isNotNull().isObject()
@@ -418,13 +406,13 @@ public class IntegrationTests {
     public void closeConnectionAfterKeepAlivePasses() throws Exception {
         List<Item> items = List.of(new Item(1L, "create server", "create an http server"));
 
-        Espresso espresso = Espresso.getDefault();
+        EspressoEngine espresso = Espresso.getDefault();
 
         espresso.get("/list", context -> context.response().json(HttpStatus.OK, Map.of("items", items)));
 
         var executor = Executors.newCachedThreadPool();
         try (var client = HttpClient.newHttpClient()) {
-            executor.submit(espresso::start);
+            executor.submit(Espresso::run);
 
             HttpRequest request = HttpRequest.newBuilder()
                     .GET()
@@ -447,15 +435,14 @@ public class IntegrationTests {
             Map<String, List<String>> headers = result.headers().map();
             assertThat(headers).containsKey("Connection").doesNotContainKey("Keep-Alive").containsValue(List.of("close"));
         } finally {
-            espresso.close();
+            espresso.stop();
             executor.shutdownNow();
         }
     }
 
     @Test
     public void handleRequestWithPathVariables() throws Exception {
-        Espresso espresso = Espresso.getDefault();
-        Engine engine = Engine.getInstance(8080);
+        EspressoEngine espresso = Espresso.getDefault();
 
         espresso.get("/event/:status", context -> {
             String status = context.request().pathVariables().get("status");
@@ -467,7 +454,7 @@ public class IntegrationTests {
 
         try (var executor = Executors.newCachedThreadPool();
              var client = HttpClient.newHttpClient()) {
-            executor.submit(espresso::start);
+            executor.submit(Espresso::run);
 
             HttpRequest request = HttpRequest.newBuilder()
                     .GET()
@@ -477,7 +464,7 @@ public class IntegrationTests {
             HttpResponse<String> result = client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
             client.shutdownNow();
             executor.shutdownNow();
-            engine.stop();
+            espresso.stop();
             assertThat(result.statusCode()).isEqualTo(HttpStatus.OK.code());
             assertThat(result.headers().map()).containsKeys("Date", "Connection", "Content-Type", "Content-Length");
             assertThatJson(result.body()).isNotNull().isObject()
@@ -487,8 +474,7 @@ public class IntegrationTests {
 
     @Test
     public void handleRequestWithQueryParam() throws Exception {
-        Espresso espresso = Espresso.getDefault();
-        Engine engine = Engine.getInstance(8080);
+        EspressoEngine espresso = Espresso.getDefault();
 
         espresso.get("/event", context -> {
             String status = context.request().query().get("status");
@@ -500,7 +486,7 @@ public class IntegrationTests {
 
         try (var executor = Executors.newCachedThreadPool();
              var client = HttpClient.newHttpClient()) {
-            executor.submit(espresso::start);
+            executor.submit(Espresso::run);
 
             HttpRequest request = HttpRequest.newBuilder()
                     .GET()
@@ -510,7 +496,7 @@ public class IntegrationTests {
             HttpResponse<String> result = client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
             client.shutdownNow();
             executor.shutdownNow();
-            engine.stop();
+            espresso.stop();
             assertThat(result.statusCode()).isEqualTo(HttpStatus.OK.code());
             assertThat(result.headers().map()).containsKeys("Date", "Connection", "Content-Type", "Content-Length");
             assertThatJson(result.body()).isNotNull().isObject().containsEntry("message", "received request for status: valid");

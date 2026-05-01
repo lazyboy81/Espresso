@@ -10,4 +10,14 @@ public class StringUtils {
         return original;
     }
 
+    public static void validUrlInput(String input) {
+        if (input == null || input.isBlank()) {
+            throw new IllegalArgumentException("the given input path cannot be null/empty");
+        }
+
+        if (!input.startsWith("/")) {
+            throw new IllegalArgumentException("the given input path should start with \"/\"");
+        }
+    }
+
 }

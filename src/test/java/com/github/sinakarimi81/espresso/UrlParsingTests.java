@@ -1,7 +1,7 @@
 package com.github.sinakarimi81.espresso;
 
 import com.github.sinakarimi81.espresso.dto.Item;
-import com.github.sinakarimi81.espresso.engine.Engine;
+import com.github.sinakarimi81.espresso.engine.EspressoEngine;
 import com.github.sinakarimi81.espresso.http.HttpStatus;
 import org.junit.jupiter.api.Test;
 
@@ -22,8 +22,7 @@ public class UrlParsingTests {
     public void queryParamsMustBeParsed() throws Exception {
         List<Item> items = List.of(new Item(1L, "create server", "create an http server"));
 
-        Espresso espresso = Espresso.getDefault();
-        Engine engine = Engine.getInstance(8080);
+        EspressoEngine espresso = Espresso.getDefault();
 
         espresso.get("/list", context -> {
             assertThat(context.request().query().params()).isNotNull()
@@ -35,7 +34,7 @@ public class UrlParsingTests {
 
         try (var executor = Executors.newCachedThreadPool();
              var client = HttpClient.newHttpClient()) {
-            executor.submit(espresso::start);
+            executor.submit(Espresso::run);
 
             HttpRequest request = HttpRequest.newBuilder()
                     .GET()
@@ -45,7 +44,7 @@ public class UrlParsingTests {
             HttpResponse<String> result = client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
             client.shutdownNow();
             executor.shutdownNow();
-            engine.stop();
+            espresso.stop();
             assertThat(result.statusCode()).isEqualTo(HttpStatus.OK.code());
             assertThat(result.body()).isNotNull().isNotBlank();
         }
@@ -55,8 +54,7 @@ public class UrlParsingTests {
     public void queryParamsMustEmpty() throws Exception {
         List<Item> items = List.of(new Item(1L, "create server", "create an http server"));
 
-        Espresso espresso = Espresso.getDefault();
-        Engine engine = Engine.getInstance(8080);
+        EspressoEngine espresso = Espresso.getDefault();
 
         espresso.get("/list", context -> {
             assertThat(context.request().query().params()).isNotNull().isEmpty();
@@ -65,7 +63,7 @@ public class UrlParsingTests {
 
         try (var executor = Executors.newCachedThreadPool();
              var client = HttpClient.newHttpClient()) {
-            executor.submit(espresso::start);
+            executor.submit(Espresso::run);
 
             HttpRequest request = HttpRequest.newBuilder()
                     .GET()
@@ -75,7 +73,7 @@ public class UrlParsingTests {
             HttpResponse<String> result = client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
             client.shutdownNow();
             executor.shutdownNow();
-            engine.stop();
+            espresso.stop();
             assertThat(result.statusCode()).isEqualTo(HttpStatus.OK.code());
             assertThat(result.body()).isNotNull().isNotBlank();
         }

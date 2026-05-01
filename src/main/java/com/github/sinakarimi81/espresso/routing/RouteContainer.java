@@ -19,7 +19,7 @@ import java.util.Map;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public class RoutingGroup {
+public class RouteContainer {
 
     private String method;
     private PathNode root;

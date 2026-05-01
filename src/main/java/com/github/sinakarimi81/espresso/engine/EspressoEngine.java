@@ -7,7 +7,8 @@ import com.github.sinakarimi81.espresso.context.Response;
 import com.github.sinakarimi81.espresso.exception.VersionNotSupportedException;
 import com.github.sinakarimi81.espresso.handler.Handler;
 import com.github.sinakarimi81.espresso.http.*;
-import com.github.sinakarimi81.espresso.routing.RoutingGroups;
+import com.github.sinakarimi81.espresso.routing.Router;
+import com.github.sinakarimi81.espresso.routing.Routes;
 import com.github.sinakarimi81.espresso.util.DateTimeUtil;
 import com.github.sinakarimi81.espresso.util.Tuple;
 import lombok.extern.slf4j.Slf4j;
@@ -28,15 +29,15 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 @Slf4j
-public class Engine {
+public class EspressoEngine {
 
-    private static Engine INSTANCE;
+    private static EspressoEngine INSTANCE;
 
-    public static Engine getInstance(int port) throws IOException {
+    public static EspressoEngine getInstance(int port) throws IOException {
         if (INSTANCE == null) {
-            synchronized (Engine.class) {
+            synchronized (EspressoEngine.class) {
                 if (INSTANCE == null) {
-                    INSTANCE = new Engine(port, new RoutingGroups());
+                    INSTANCE = new EspressoEngine(port, new Routes());
                 }
             }
         }
@@ -51,45 +52,47 @@ public class Engine {
     private final ExecutorService executorService = Executors.newFixedThreadPool(60);
     private final ServerSocketChannel serverSocketChannel;
     private final Selector selector;
-    private final RoutingGroups groups;
+    private final Routes routes;
 
-    private Engine(int port, RoutingGroups routingGroups) throws IOException {
-        groups = routingGroups;
-        serverSocketChannel = ServerSocketChannel.open();
-        serverSocketChannel.bind(new InetSocketAddress(port));
-        serverSocketChannel.configureBlocking(false);
-        selector = Selector.open();
-        serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
+    private EspressoEngine(int port, Routes routes) throws IOException {
+        this.routes = routes;
+        this.serverSocketChannel = ServerSocketChannel.open();
+        this.serverSocketChannel.bind(new InetSocketAddress(port));
+        this.serverSocketChannel.configureBlocking(false);
+        this.selector = Selector.open();
+        this.serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
+    }
+
+    public Router group(String root) {
+        return routes.group(root);
     }
 
     public void options(String path, Handler handler) {
-        groups.addRoute(HttpMethod.OPTIONS_METHOD, path, handler);
+        routes.options(path, handler);
     }
 
     public void head(String path, Handler handler) {
-        groups.addRoute(HttpMethod.HEAD_METHOD, path, handler);
+        routes.head(path, handler);
     }
 
     public void get(String path, Handler handler) {
-        groups.addRoute(HttpMethod.GET_METHOD, path, handler);
+        routes.get(path, handler);
     }
 
     public void post(String path, Handler handler) {
-        groups.addRoute(HttpMethod.POST_METHOD, path, handler);
+        routes.post(path, handler);
     }
 
     public void put(String path, Handler handler) {
-        groups.addRoute(HttpMethod.PUT_METHOD, path, handler);
+        routes.put(path, handler);
     }
 
     public void delete(String path, Handler handler) {
-        groups.addRoute(HttpMethod.DELETE_METHOD, path, handler);
+        routes.delete(path, handler);
     }
 
     public void any(String path, Handler handler) {
-        for (String method : HttpMethod.METHODS) {
-            groups.addRoute(method, path, handler);
-        }
+        routes.any(path, handler);
     }
 
     public void start() throws IOException {
@@ -219,7 +222,7 @@ public class Engine {
     private Tuple<Map<String, String>, Handler> extractPathVariablesAndReturnHandler(String method, String urlPath) {
         var pathVars = new HashMap<String, String>();
 
-        Handler handlerForPath = groups.getHandlerForPath(method, urlPath, pathVars);
+        Handler handlerForPath = routes.getHandlerForPath(method, urlPath, pathVars);
 
         return Tuple.of(pathVars, handlerForPath);
     }
