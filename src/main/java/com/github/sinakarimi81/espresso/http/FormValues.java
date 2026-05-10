@@ -1,16 +1,31 @@
 package com.github.sinakarimi81.espresso.http;
 
+import org.eclipse.jetty.util.Fields;
+
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
-public record FormValues(Map<String, List<String>> values) {
+public record FormValues(Fields params) {
 
-    public List<String> get(String key) {
-        return values.getOrDefault(key, List.of());
+    public Set<String> getAllNames() {
+        return params.getNames();
     }
 
-    public Map<String, List<String>> getAll() {
-        return Map.copyOf(values);
+    public String get(String key) {
+        return params.getValue(key);
+    }
+
+    public List<String> getValues(String key) {
+        return params.getValuesOrEmpty(key);
+    }
+
+    public boolean isEmpty() {
+        return params == null || params.isEmpty();
+    }
+
+    public boolean hasMultipleValues(String key) {
+        return params.get(key).hasMultipleValues();
     }
 
 }

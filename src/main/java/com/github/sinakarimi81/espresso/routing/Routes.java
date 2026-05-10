@@ -1,17 +1,25 @@
 package com.github.sinakarimi81.espresso.routing;
 
+import com.github.sinakarimi81.espresso.exception.PathNotFoundException;
 import com.github.sinakarimi81.espresso.handler.Handler;
-import com.github.sinakarimi81.espresso.http.HttpMethod;
-import com.github.sinakarimi81.espresso.http.HttpStatus;
 import com.github.sinakarimi81.espresso.util.DateTimeUtil;
 import com.github.sinakarimi81.espresso.util.StringUtils;
+import org.eclipse.jetty.http.HttpMethod;
+import org.eclipse.jetty.http.HttpStatus;
 
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class Routes implements Router {
+
+    private static final List<String> methods = List.of(
+            HttpMethod.OPTIONS.asString(), HttpMethod.HEAD.asString(), HttpMethod.GET.asString(),
+            HttpMethod.POST.asString(), HttpMethod.PUT.asString(), HttpMethod.DELETE.asString()
+    );
+
     private final Map<String, Handler> staticRoutes;
     private final Map<String, RouteContainer> dynamicRoutes;
 
@@ -25,37 +33,37 @@ public class Routes implements Router {
 
     @Override
     public void options(String path, Handler handler) {
-        addRoute(HttpMethod.OPTIONS_METHOD, path, handler);
+        addRoute(HttpMethod.OPTIONS.asString(), path, handler);
     }
 
     @Override
     public void head(String path, Handler handler) {
-        addRoute(HttpMethod.HEAD_METHOD, path, handler);
+        addRoute(HttpMethod.HEAD.asString(), path, handler);
     }
 
     @Override
     public void get(String path, Handler handler) {
-        addRoute(HttpMethod.GET_METHOD, path, handler);
+        addRoute(HttpMethod.GET.asString(), path, handler);
     }
 
     @Override
     public void post(String path, Handler handler) {
-        addRoute(HttpMethod.POST_METHOD, path, handler);
+        addRoute(HttpMethod.POST.asString(), path, handler);
     }
 
     @Override
     public void put(String path, Handler handler) {
-        addRoute(HttpMethod.PUT_METHOD, path, handler);
+        addRoute(HttpMethod.PUT.asString(), path, handler);
     }
 
     @Override
     public void delete(String path, Handler handler) {
-        addRoute(HttpMethod.DELETE_METHOD, path, handler);
+        addRoute(HttpMethod.DELETE.asString(), path, handler);
     }
 
     @Override
     public void any(String path, Handler handler) {
-        for (String method : HttpMethod.METHODS) {
+        for (String method : methods) {
             addRoute(method, path, handler);
         }
     }
@@ -67,7 +75,7 @@ public class Routes implements Router {
     }
 
     private void addRoute(String method, String path, Handler handler) {
-        if (HttpMethod.doesNotContain(method)) {
+        if (!methods.contains(method)) {
             throw new IllegalArgumentException(String.format("method %s is not supported in espresso", method));
         }
 
@@ -110,12 +118,7 @@ public class Routes implements Router {
 
         RouteContainer routeContainer = dynamicRoutes.get(method);
         if (routeContainer == null) {
-            return context -> context.response().json(HttpStatus.NOT_FOUND, Map.of(
-                    "timestamp", DateTimeUtil.rfc1123DateFormat(Instant.now()),
-                    "status", HttpStatus.NOT_FOUND.code(),
-                    "error", HttpStatus.NOT_FOUND.description(),
-                    "path", String.format("%s %s", method, path)
-            ));
+            throw new PathNotFoundException(String.format("no route was found for method: %s path: %s", method, path));
         }
 
         return routeContainer.getHandlerForPath(path, pathVars);

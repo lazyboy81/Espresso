@@ -1,7 +1,9 @@
 package com.github.sinakarimi81.espresso.binding;
 
-public abstract class Binding extends Serialization {
+import java.io.InputStream;
 
-    public abstract  <T> T bind(String payload, Class<T> tClass);
+public abstract class Binding implements Serialization {
+
+    public abstract  <T> T bind(InputStream payload, Class<T> tClass);
 
 }

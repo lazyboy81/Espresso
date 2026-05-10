@@ -1,4 +1,4 @@
-package com.github.sinakarimi81.espresso.context;
+package com.github.sinakarimi81.espresso.handler;
 
 import com.github.sinakarimi81.espresso.binding.Bindings;
 import com.github.sinakarimi81.espresso.http.FormValues;
@@ -7,21 +7,22 @@ import com.github.sinakarimi81.espresso.http.PathVariables;
 import com.github.sinakarimi81.espresso.http.Query;
 import lombok.AllArgsConstructor;
 
-import java.util.List;
-import java.util.Map;
+import java.io.IOException;
+import java.io.InputStream;
 
 @AllArgsConstructor
 public class Request {
 
     private Headers headers;
-    private PathVariables pathVariables;
     private Query query;
+    private PathVariables pathVariables;
     private FormValues formValues;
-    private String payload;
+    private InputStream payload;
 
     /**
      * <p>contains the request header fields either received
      * by the server or to be sent by the client.</p>
+     *
      * @return headers sent by client. see {@link Headers}
      */
     public Headers headers() {
@@ -33,6 +34,7 @@ public class Request {
      * <p>for example for url "/user/:id" we would have</p>
      * <p>{@code GET /user/1234/}</p>
      * <p>{@code pathVariables().get("id") == "1234"}</p>
+     *
      * @return path variables sent by client. see {@link PathVariables}
      */
     public PathVariables pathVariables() {
@@ -47,6 +49,7 @@ public class Request {
      * <p>{@code query().get("name") == "Manu"}</p>
      * <p>{@code query().get("value") == ""}</p>
      * <p>{@code query().get("wtf") == ""}}</p>
+     *
      * @return query parameters sent by client. see {@link Query}
      */
     public Query query() {
@@ -54,20 +57,21 @@ public class Request {
     }
 
     /**
-     * returns the values associated to a key from the input form
-     * @param key form key
-     * @return the value for the given key, if the mapping does not exist an empty list is returned
+     * @return the form values of the request
+     * @implNote if the request's content-type header does not contain the following values
+     * <ul>
+     *     <li> {@link org.eclipse.jetty.http.MimeTypes.Type#FORM_ENCODED} </li>
+     *     <li> {@link org.eclipse.jetty.http.MimeTypes.Type#FORM_ENCODED_8859_1} </li>
+     *     <li> {@link org.eclipse.jetty.http.MimeTypes.Type#FORM_ENCODED_UTF_8} </li>
+     * </ul>
+     * an empty form value will be returned, meaning {@code FormValues.isEmpty() == true}
      */
-    public List<String> formValue(String key) {
-        return formValues.get(key);
+    public FormValues formValue() {
+        return formValues;
     }
 
-    /**
-     * returns all the key/values associated to a given input form
-     * @return an unmodifiable copy of the key/values mappings of the input form
-     */
-    public Map<String, List<String>> formValues() {
-        return formValues.getAll();
+    public InputStream asInputStream() {
+        return payload;
     }
 
     public <T> T json(Class<T> targetType) {
@@ -78,8 +82,16 @@ public class Request {
         return Bindings.xml().bind(payload, targetType);
     }
 
-    public String text() {
-        return payload;
+    public String text() throws IOException {
+        StringBuilder result = new StringBuilder();
+
+        byte[] buffer = new byte[1024];
+        while (payload.read(buffer) > 0) {
+            result.append(new String(buffer));
+            buffer = new byte[1024]; // reset the buffer
+        }
+
+        return result.toString();
     }
 
 }

@@ -1,0 +1,15 @@
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+    <title th:text="${status} + ' – ' + ${error}">Error</title>
+</head>
+<body>
+<h2 th:text="${status}">500</h2>
+<table>
+    <tr><th>TIMESTAMP:</th><td th:text="${timestamp}"></td></tr>
+    <tr><th>STATUS:</th><td th:text="${status}">500</td></tr>
+    <tr><th>ERROR:</th><td th:text="${error}">Internal Server Error</td></tr>
+    <tr><th>MESSAGE:</th><td th:text="${message}">No message available</td></tr>
+</table>
+</body>
+</html>

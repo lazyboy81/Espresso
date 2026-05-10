@@ -1,13 +1,14 @@
 package com.github.sinakarimi81.espresso.routing;
 
+import com.github.sinakarimi81.espresso.exception.PathNotFoundException;
 import com.github.sinakarimi81.espresso.handler.Handler;
-import com.github.sinakarimi81.espresso.http.HttpStatus;
 import com.github.sinakarimi81.espresso.util.DateTimeUtil;
 import com.github.sinakarimi81.espresso.util.StringUtils;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.eclipse.jetty.http.HttpStatus;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -64,12 +65,7 @@ public class RouteContainer {
             return handler;
         }
 
-        return context -> context.response().json(HttpStatus.NOT_FOUND, Map.of(
-                "timestamp", DateTimeUtil.rfc1123DateFormat(Instant.now()),
-                "status", HttpStatus.NOT_FOUND.code(),
-                "error", HttpStatus.NOT_FOUND.description(),
-                "path", String.format("%s %s", method, fullPath)
-        ));
+        throw new PathNotFoundException(String.format("no route was found for path: %s", fullPath));
     }
 
     private Handler traverseTree(PathNode root, String fullPath, Map<String, String> pathVars) {

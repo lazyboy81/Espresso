@@ -2,28 +2,30 @@ package com.github.sinakarimi81.espresso.binding.impl;
 
 import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 import com.github.sinakarimi81.espresso.binding.Binding;
+import com.github.sinakarimi81.espresso.exception.BadRequestException;
+import org.eclipse.jetty.http.MimeTypes;
+
+import java.io.InputStream;
 
 public class XmlBinding extends Binding {
-
-    private static final String CONTENT_TYPE = "application/xml; charset=utf-8";
 
     private final XmlMapper mapper = new XmlMapper();
 
     @Override
-    public <T> T bind(String payload, Class<T> tClass) {
-        if (payload == null || payload.isBlank()) {
+    public <T> T bind(InputStream payload, Class<T> tClass) {
+        if (payload == null) {
             return null;
         }
 
         try {
             return mapper.readValue(payload, tClass);
         } catch (Exception e) {
-            throw new RuntimeException("failed to process payload as xml", e);
+            throw new BadRequestException("failed to process payload as xml", e);
         }
     }
 
     @Override
-    public String convertResponsePayload(Object payload) {
+    public String serialize(Object payload) {
         if (payload == null) {
             return "";
         }
@@ -37,7 +39,14 @@ public class XmlBinding extends Binding {
 
     @Override
     public String contentTypeValue() {
-        return CONTENT_TYPE;
+        return MimeTypes.Type.TEXT_XML_UTF_8.asString();
+    }
+
+    @Override
+    public boolean canHandle(String acceptType) {
+        return MimeTypes.Type.TEXT_XML_UTF_8.asString().equalsIgnoreCase(acceptType) ||
+                MimeTypes.Type.TEXT_XML_8859_1.asString().equalsIgnoreCase(acceptType) ||
+                MimeTypes.Type.TEXT_XML.asString().equalsIgnoreCase(acceptType);
     }
 
 }

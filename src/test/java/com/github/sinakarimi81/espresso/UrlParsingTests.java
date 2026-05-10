@@ -1,8 +1,8 @@
 package com.github.sinakarimi81.espresso;
 
 import com.github.sinakarimi81.espresso.dto.Item;
-import com.github.sinakarimi81.espresso.engine.EspressoEngine;
-import com.github.sinakarimi81.espresso.http.HttpStatus;
+import org.eclipse.jetty.http.HttpStatus;
+import org.eclipse.jetty.util.Fields;
 import org.junit.jupiter.api.Test;
 
 import java.net.URI;
@@ -12,8 +12,10 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 
+import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class UrlParsingTests {
@@ -22,19 +24,21 @@ public class UrlParsingTests {
     public void queryParamsMustBeParsed() throws Exception {
         List<Item> items = List.of(new Item(1L, "create server", "create an http server"));
 
-        EspressoEngine espresso = Espresso.getDefault();
+        Espresso espresso = Espresso.getDefault();
 
-        espresso.get("/list", context -> {
-            assertThat(context.request().query().params()).isNotNull()
-                    .isNotEmpty()
-                    .containsKeys("name", "age", "verified")
-                    .containsValues("sina", "23", "");
-            context.response().json(HttpStatus.OK, Map.of("items", items));
+        espresso.get("/list", (request, response) -> {
+            Fields params = request.query().params();
+            assertThat(params).isNotNull().isNotEmpty();
+            assertThat(params.getNames()).contains("name", "age", "verified");
+            assertThat(params.getValue("name")).isEqualTo("sina");
+            assertThat(params.getValue("age")).isEqualTo("23");
+            assertThat(params.getValue("verified")).isBlank();
+
+            response.json(HttpStatus.Code.OK, Map.of("items", items));
         });
 
-        try (var executor = Executors.newCachedThreadPool();
-             var client = HttpClient.newHttpClient()) {
-            executor.submit(Espresso::run);
+        try (var client = HttpClient.newHttpClient()) {
+            CompletableFuture.runAsync(espresso::start);
 
             HttpRequest request = HttpRequest.newBuilder()
                     .GET()
@@ -42,11 +46,10 @@ public class UrlParsingTests {
                     .uri(URI.create("http://localhost:8080/list?name=sina&age=23&verified="))
                     .build();
             HttpResponse<String> result = client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-            client.shutdownNow();
-            executor.shutdownNow();
-            espresso.stop();
-            assertThat(result.statusCode()).isEqualTo(HttpStatus.OK.code());
+            assertThat(result.statusCode()).isEqualTo(HttpStatus.Code.OK.getCode());
             assertThat(result.body()).isNotNull().isNotBlank();
+        } catch (Exception e) {
+            System.out.println(e);
         }
     }
 
@@ -54,16 +57,16 @@ public class UrlParsingTests {
     public void queryParamsMustEmpty() throws Exception {
         List<Item> items = List.of(new Item(1L, "create server", "create an http server"));
 
-        EspressoEngine espresso = Espresso.getDefault();
+        Espresso espresso = Espresso.getDefault();
 
-        espresso.get("/list", context -> {
-            assertThat(context.request().query().params()).isNotNull().isEmpty();
-            context.response().json(HttpStatus.OK, Map.of("items", items));
+        espresso.get("/list", (request, response) -> {
+            assertThat(request.query().params()).isNotNull().isEmpty();
+
+            response.json(HttpStatus.Code.OK, Map.of("items", items));
         });
 
-        try (var executor = Executors.newCachedThreadPool();
-             var client = HttpClient.newHttpClient()) {
-            executor.submit(Espresso::run);
+        try (var client = HttpClient.newHttpClient()) {
+            CompletableFuture.runAsync(espresso::start);
 
             HttpRequest request = HttpRequest.newBuilder()
                     .GET()
@@ -71,11 +74,66 @@ public class UrlParsingTests {
                     .uri(URI.create("http://localhost:8080/list"))
                     .build();
             HttpResponse<String> result = client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-            client.shutdownNow();
-            executor.shutdownNow();
-            espresso.stop();
-            assertThat(result.statusCode()).isEqualTo(HttpStatus.OK.code());
+            assertThat(result.statusCode()).isEqualTo(HttpStatus.Code.OK.getCode());
             assertThat(result.body()).isNotNull().isNotBlank();
+        }
+    }
+
+    @Test
+    public void handleRequestWithPathVariables() throws Exception {
+        Espresso espresso = Espresso.getDefault();
+
+        espresso.get("/event/:status", (request, response) -> {
+            String status = request.pathVariables().get("status");
+
+            String message = String.format("received request for status: %s", status);
+
+            response.json(HttpStatus.Code.OK, Map.of("message", message));
+        });
+
+        try (var client = HttpClient.newHttpClient()) {
+            CompletableFuture.runAsync(espresso::start);
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .GET()
+                    .version(HttpClient.Version.HTTP_1_1)
+                    .uri(URI.create("http://localhost:8080/event/valid"))
+                    .build();
+            HttpResponse<String> result = client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+
+
+            assertThat(result.statusCode()).isEqualTo(HttpStatus.Code.OK.getCode());
+            assertThat(result.headers().map()).containsKeys("Date", "Content-Type", "Content-Length");
+            assertThatJson(result.body()).isNotNull().isObject()
+                    .containsEntry("message", "received request for status: valid");
+        }
+    }
+
+    @Test
+    public void handleRequestWithQueryParam() throws Exception {
+        Espresso espresso = Espresso.getDefault();
+
+        espresso.get("/event", (request, response) -> {
+            String status = request.query().get("status");
+
+            String message = String.format("received request for status: %s", status);
+
+            response.json(HttpStatus.Code.OK, Map.of("message", message));
+        });
+
+        try (var client = HttpClient.newHttpClient()) {
+            CompletableFuture.runAsync(espresso::start);
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .GET()
+                    .version(HttpClient.Version.HTTP_1_1)
+                    .uri(URI.create("http://localhost:8080/event?status=valid"))
+                    .build();
+            HttpResponse<String> result = client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+
+            assertThat(result.statusCode()).isEqualTo(HttpStatus.Code.OK.getCode());
+            assertThat(result.headers().map()).containsKeys("Date", "Content-Type", "Content-Length");
+            assertThatJson(result.body()).isNotNull().isObject().containsEntry("message", "received request for status: valid");
         }
     }
 

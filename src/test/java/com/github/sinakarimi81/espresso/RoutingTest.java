@@ -1,12 +1,12 @@
 package com.github.sinakarimi81.espresso;
 
-import com.github.sinakarimi81.espresso.engine.EspressoEngine;
+import com.github.sinakarimi81.espresso.exception.PathNotFoundException;
 import com.github.sinakarimi81.espresso.handler.Handler;
-import com.github.sinakarimi81.espresso.http.HttpMethod;
 import com.github.sinakarimi81.espresso.routing.PathNode;
-import com.github.sinakarimi81.espresso.routing.Router;
 import com.github.sinakarimi81.espresso.routing.RouteContainer;
+import com.github.sinakarimi81.espresso.routing.Router;
 import com.github.sinakarimi81.espresso.routing.Routes;
+import org.eclipse.jetty.http.HttpMethod;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
@@ -26,7 +26,7 @@ public class RoutingTest {
     public void addNewRootRoute(){
         Routes routes = new Routes();
 
-        routes.get("/", System.out::println);
+        routes.get("/", (request, response) -> System.out.println("test"));
 
         var handlerMap = (Map<String, Handler>) getFieldValue(routes, "staticRoutes", Map.class);
         assertThat(handlerMap).containsKey("GET /");
@@ -37,9 +37,9 @@ public class RoutingTest {
     public void addNewRoute() {
         Routes routes = new Routes();
 
-        routes.get("/", System.out::println);
-        routes.get("/events", context -> System.out.println("/events route"));
-        routes.get("/add", context -> System.out.println("/add route"));
+        routes.get("/", (request, response) -> System.out.println("test"));
+        routes.get("/events", (request, response) -> System.out.println("/events route"));
+        routes.get("/add", (request, response) -> System.out.println("/add route"));
 
         var handlerMap = (Map<String, Handler>) getFieldValue(routes, "staticRoutes", Map.class);
 
@@ -51,14 +51,14 @@ public class RoutingTest {
     public void addNewRouteToChild() {
         Routes routes = new Routes();
 
-        routes.get("/", System.out::println);
-        routes.get("/add", context -> System.out.println("/add route"));
-        routes.get("/events/:id", context -> System.out.println("/events route"));
+        routes.get("/", (request, response) -> System.out.println("test"));
+        routes.get("/add", (request, response) -> System.out.println("/add route"));
+        routes.get("/events/:id", (request, response) -> System.out.println("/events route"));
 
         var staticHandlerMap = (Map<String, Handler>) getFieldValue(routes, "staticRoutes", Map.class);
         var dynamicHandlerMap = (Map<String, RouteContainer>) getFieldValue(routes, "dynamicRoutes", Map.class);
 
-        PathNode getRoot = dynamicHandlerMap.get(HttpMethod.GET_METHOD).getRoot();
+        PathNode getRoot = dynamicHandlerMap.get(HttpMethod.GET.asString()).getRoot();
         List<PathNode> children = getRoot.getChildSegments();
 
         assertThat(staticHandlerMap).hasSize(2).containsKeys("GET /", "GET /add");
@@ -71,11 +71,11 @@ public class RoutingTest {
     public void addNewRouteToChildChild() {
         Routes routes = new Routes();
 
-        routes.get("/events/:status", context -> System.out.println("/events/status route"));
-        routes.get("/events/:id", context -> System.out.println("/events/id route"));
+        routes.get("/events/:status", (request, response) -> System.out.println("/events/status route"));
+        routes.get("/events/:id", (request, response) -> System.out.println("/events/id route"));
 
         var handlerMap = (Map<String, RouteContainer>) getFieldValue(routes, "dynamicRoutes", Map.class);
-        PathNode getRoot = handlerMap.get(HttpMethod.GET_METHOD).getRoot();
+        PathNode getRoot = handlerMap.get(HttpMethod.GET.asString()).getRoot();
 
         List<PathNode> children = getRoot.getChildSegments();
         assertThat(children).hasSize(1);
@@ -87,12 +87,12 @@ public class RoutingTest {
     public void addNewRouteToRoot() {
         Routes routes = new Routes();
 
-        routes.get("/events/:status", context -> System.out.println("/events/status route"));
-        routes.get("/events/:id", context -> System.out.println("/events/id route"));
-        routes.get("/add/:name", context -> System.out.println("/add/name route"));
+        routes.get("/events/:status", (request, response) -> System.out.println("/events/status route"));
+        routes.get("/events/:id", (request, response) -> System.out.println("/events/id route"));
+        routes.get("/add/:name", (request, response) -> System.out.println("/add/name route"));
 
         var handlerMap = (Map<String, RouteContainer>) getFieldValue(routes, "dynamicRoutes", Map.class);
-        PathNode getRoot = handlerMap.get(HttpMethod.GET_METHOD).getRoot();
+        PathNode getRoot = handlerMap.get(HttpMethod.GET.asString()).getRoot();
 
         List<PathNode> children = getRoot.getChildSegments();
         assertThat(children).hasSize(2);
@@ -113,7 +113,7 @@ public class RoutingTest {
     public void getHandlerForRoot() {
         Routes routes = new Routes();
 
-        Handler handler = System.out::println;
+        Handler handler = (request, response) -> System.out.println("test");
         routes.get("/", handler);
 
         Handler handlerForPath = routes.getHandlerForPath("GET", "/", null); // is static
@@ -124,14 +124,14 @@ public class RoutingTest {
     public void getHandler_static_multiLevelTree() {
         Routes routes = new Routes();
 
-        routes.get("/", System.out::println);
-        routes.get("/events", context -> System.out.println("/events route"));
-        routes.get("/add", context -> System.out.println("/add route"));
-        routes.get("/add/id", context -> System.out.println("/add/id route"));
-        Handler eventsStatusHandler = context -> System.out.println("/events/status route");
+        routes.get("/", (request, response) -> System.out.println("test"));
+        routes.get("/events", (request, response) -> System.out.println("/events route"));
+        routes.get("/add", (request, response) -> System.out.println("/add route"));
+        routes.get("/add/id", (request, response) -> System.out.println("/add/id route"));
+        Handler eventsStatusHandler = (request, response) -> System.out.println("/events/status route");
         routes.get("/events/status", eventsStatusHandler);
-        routes.get("/events/id", context -> System.out.println("/events/id route"));
-        routes.get("/remove", context -> System.out.println("/remove route"));
+        routes.get("/events/id", (request, response) -> System.out.println("/events/id route"));
+        routes.get("/remove", (request, response) -> System.out.println("/remove route"));
 
         Handler handlerForPath = routes.getHandlerForPath("GET", "/events/status", null);
         assertThat(handlerForPath).isNotNull().isEqualTo(eventsStatusHandler).isInstanceOf(Handler.class);
@@ -146,31 +146,31 @@ public class RoutingTest {
     @Test
     public void getHandler_static_multiLevelTree_throwsExceptionWhenHasNoHandler() {
         Routes routes = new Routes();
-        routes.get("/", System.out::println);
+        routes.get("/", (request, response) -> System.out.println("test"));
 
-        routes.get("/", System.out::println);
-        routes.get("/events", context -> System.out.println("/events route"));
-        routes.get("/add", context -> System.out.println("/add route"));
-        routes.get("/add/id", context -> System.out.println("/add/id route"));
+        routes.get("/", (request, response) -> System.out.println("test"));
+        routes.get("/events", (request, response) -> System.out.println("/events route"));
+        routes.get("/add", (request, response) -> System.out.println("/add route"));
+        routes.get("/add/id", (request, response) -> System.out.println("/add/id route"));
 
-        Handler eventsStatusHandler = context -> System.out.println("/events/status route");
+        Handler eventsStatusHandler = (request, response) -> System.out.println("/events/status route");
         routes.get("/events/status", eventsStatusHandler);
 
-        routes.get("/events/id", context -> System.out.println("/events/id route"));
-        routes.get("/remove", context -> System.out.println("/remove route"));
+        routes.get("/events/id", (request, response) -> System.out.println("/events/id route"));
+        routes.get("/remove", (request, response) -> System.out.println("/remove route"));
 
-        Handler notFoundHandler = routes.getHandlerForPath(HttpMethod.GET_METHOD, "/values", null);
-        assertThat(notFoundHandler).isNotNull();
+        assertThatThrownBy(() -> routes.getHandlerForPath(HttpMethod.GET.asString(), "/values", new HashMap<>()))
+                .isInstanceOf(PathNotFoundException.class);
     }
 
     @Test
     public void getHandler_dynamic_multiLevelTree() {
         Routes routes = new Routes();
 
-        Handler eventsStatusHandler = context -> System.out.println("/events/status route");
+        Handler eventsStatusHandler = (request, response) -> System.out.println("/events/status route");
         routes.get("/events/:status", eventsStatusHandler);
-        routes.get("/events/:id", context -> System.out.println("/events/id route"));
-        routes.get("/add/:name", context -> System.out.println("/add/name route"));
+        routes.get("/events/:id", (request, response) -> System.out.println("/events/id route"));
+        routes.get("/add/:name", (request, response) -> System.out.println("/add/name route"));
 
         var pathVars = new HashMap<String, String>();
         Handler handlerForPath = routes.getHandlerForPath("GET", "/events/valid", pathVars);
@@ -179,18 +179,18 @@ public class RoutingTest {
     }
 
     @Test
-    public void getHandler_dynamic_multiLevelTree_returns404Handler() {
+    public void getHandler_dynamic_multiLevelTree_ThrowsExceptionWhenNoHandlerFound() {
         Routes routes = new Routes();
 
-        Handler eventsStatusHandler = context -> System.out.println("/events/status route");
+        Handler eventsStatusHandler = (request, response) -> System.out.println("/events/status route");
         routes.get("/events/:status", eventsStatusHandler);
-        routes.get("/events/:id", context -> System.out.println("/events/id route"));
-        routes.get("/add/:name", context -> System.out.println("/add/name route"));
+        routes.get("/events/:id", (request, response) -> System.out.println("/events/id route"));
+        routes.get("/add/:name", (request, response) -> System.out.println("/add/name route"));
 
         var pathVars = new HashMap<String, String>();
-        Handler notFoundHandler = routes.getHandlerForPath(HttpMethod.GET_METHOD, "/remove/values", pathVars);
+        assertThatThrownBy(() -> routes.getHandlerForPath(HttpMethod.GET.asString(), "/remove/values", pathVars))
+                .isInstanceOf(PathNotFoundException.class);
 
-        assertThat(notFoundHandler).isNotNull();
         assertThat(pathVars).isEmpty();
     }
 
@@ -198,28 +198,32 @@ public class RoutingTest {
     public void getHandler_matches_more_specific_route() {
         Routes routes = new Routes();
 
-        Handler eventsStatusHandler = context -> System.out.println("/events/status route");
+        Handler eventsStatusHandler = (request, response) -> System.out.println("/events/status route");
         routes.get("/events/:status", eventsStatusHandler);
         routes.get("/events/valid", eventsStatusHandler);
-        routes.get("/events/:id", context -> System.out.println("/events/id route"));
-        routes.get("/add/:name", context -> System.out.println("/add/name route"));
+        routes.get("/events/:id", (request, response) -> System.out.println("/events/id route"));
+        routes.get("/add/:name", (request, response) -> System.out.println("/add/name route"));
 
         var pathVars = new HashMap<String, String>();
-        Handler handlerForPath = routes.getHandlerForPath(HttpMethod.GET_METHOD, "/events/valid", pathVars);
+        Handler handlerForPath = routes.getHandlerForPath(HttpMethod.GET.asString(), "/events/valid", pathVars);
 
         assertThat(handlerForPath).isNotNull().isEqualTo(eventsStatusHandler).isInstanceOf(Handler.class);
         assertThat(pathVars).isEmpty();
     }
 
     @Test
-    public void addPathForAllMethods() throws IOException {
-        EspressoEngine engine = EspressoEngine.getInstance(8080);
+    public void addPathForAllMethods() {
         Routes routes = new Routes();
 
-        engine.any("/test", System.out::println);
+        List<String> methods = List.of(
+                HttpMethod.OPTIONS.asString(), HttpMethod.HEAD.asString(), HttpMethod.GET.asString(),
+                HttpMethod.POST.asString(), HttpMethod.PUT.asString(), HttpMethod.DELETE.asString()
+        );
 
-        for (String method : HttpMethod.METHODS) {
-            Handler handlerForPath = routes.getHandlerForPath(method, "/test", null);
+        routes.any("/test", (request, response) -> System.out.println("test"));
+
+        for (String method : methods) {
+            Handler handlerForPath = routes.getHandlerForPath(method, "/test", new HashMap<>());
             assertThat(handlerForPath).isNotNull();
         }
     }
@@ -229,14 +233,14 @@ public class RoutingTest {
     public void createNewRouteGroup() {
         Routes routes = new Routes();
 
-        routes.get("/events", context -> System.out.println("/events route"));
+        routes.get("/events", (request, response) -> System.out.println("/events route"));
 
         Router authRoutes = routes.group("/auth");
-        authRoutes.post("/login", System.out::println);
-        authRoutes.post("/signup", System.out::println);
+        authRoutes.post("/login", (request, response) -> System.out.println("test"));
+        authRoutes.post("/signup", (request, response) -> System.out.println("test"));
 
         Router tokenRoutes = authRoutes.group("/token");
-        tokenRoutes.put("/refresh", System.out::println);
+        tokenRoutes.put("/refresh", (request, response) -> System.out.println("test"));
 
         var handlerMap = (Map<String, Handler>) getFieldValue(routes, "staticRoutes", Map.class);
 
@@ -248,7 +252,7 @@ public class RoutingTest {
     public void createNewRouteGroupThrowsExceptionWhenInputNotValid() {
         Routes routes = new Routes();
 
-        routes.get("/events", context -> System.out.println("/events route"));
+        routes.get("/events", (request, response) -> System.out.println("/events route"));
 
         assertThatThrownBy(() -> routes.group("auth"))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -262,13 +266,13 @@ public class RoutingTest {
     public void createNewRouteGroupThrowsExceptionWhenAddingPath() {
         Routes routes = new Routes();
 
-        routes.get("/events", context -> System.out.println("/events route"));
+        routes.get("/events", (request, response) -> System.out.println("/events route"));
 
         Router group = routes.group("/auth");
-        assertThatThrownBy(() -> group.get("login", System.out::println))
+        assertThatThrownBy(() -> group.get("login", (request, response) -> System.out.println("test")))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("the given input path should start with \"/\"");
-        assertThatThrownBy(() -> group.get("", System.out::println))
+        assertThatThrownBy(() -> group.get("", (request, response) -> System.out.println("test")))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("the given input path cannot be null/empty");
     }
