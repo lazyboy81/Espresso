@@ -3,28 +3,43 @@ package com.github.sinakarimi81.espresso.handler;
 import com.github.sinakarimi81.espresso.binding.Bindings;
 import com.github.sinakarimi81.espresso.binding.dto.TemplateData;
 import lombok.extern.slf4j.Slf4j;
+import org.eclipse.jetty.http.HttpFields;
 import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.util.Callback;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.util.Locale;
-import java.util.Map;
 
 @Slf4j
 public class Response {
 
     private final org.eclipse.jetty.server.Response delegator;
     private final Callback callback;
+    private String payload;
 
     public Response(org.eclipse.jetty.server.Response delegator, Callback callback) {
         this.delegator = delegator;
         this.callback = callback;
     }
 
+    public String payload() {
+        return payload;
+    }
+
+    public int status() {
+        return delegator.getStatus();
+    }
+
     /**
-     * manage response headers
+     * @return all the value of the response
+     */
+    public HttpFields headers() {
+        return delegator.getHeaders().asImmutable();
+    }
+
+    /**
+     * manage response value
      *
      * @param key   any string, will be set as header name
      * @param value any string, if value is empty or null, any previous mapping to the given key is removed
@@ -34,7 +49,7 @@ public class Response {
     }
 
     /**
-     * manage response headers
+     * manage response value
      *
      * @param key   any string, will be set as header name
      * @param value any string, if value is empty or null, any previous mapping to the given key is removed
@@ -60,6 +75,7 @@ public class Response {
 
         try {
             String output = Bindings.json().serialize(payload);
+            this.payload = String.copyValueOf(output.toCharArray());
             ByteBuffer src = ByteBuffer.wrap(output.getBytes(StandardCharsets.UTF_8));
             delegator.write(true, src, callback);
         } catch (Exception e) {
@@ -104,6 +120,7 @@ public class Response {
 
         try {
             String output = Bindings.xml().serialize(payload);
+            this.payload = String.copyValueOf(output.toCharArray());
             ByteBuffer src = ByteBuffer.wrap(output.getBytes(StandardCharsets.UTF_8));
             delegator.write(true, src, callback);
         } catch (Exception e) {
@@ -149,6 +166,7 @@ public class Response {
 
         try {
             String output = Bindings.text().serialize(payload);
+            this.payload = String.copyValueOf(output.toCharArray());
             ByteBuffer src = ByteBuffer.wrap(output.getBytes(StandardCharsets.UTF_8));
             delegator.write(true, src, callback);
         } catch (Exception e) {
@@ -195,6 +213,7 @@ public class Response {
 
         try {
             String output = Bindings.html().serialize(templateData);
+            this.payload = String.copyValueOf(output.toCharArray());
             ByteBuffer src = ByteBuffer.wrap(output.getBytes(StandardCharsets.UTF_8));
             delegator.write(true, src, callback);
         } catch (Exception e) {

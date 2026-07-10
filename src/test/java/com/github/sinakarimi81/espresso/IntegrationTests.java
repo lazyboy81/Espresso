@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 import com.github.sinakarimi81.espresso.binding.dto.TemplateData;
 import com.github.sinakarimi81.espresso.dto.Item;
+import com.github.sinakarimi81.espresso.middleware.Middlewares;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.eclipse.jetty.http.HttpStatus;
@@ -35,6 +36,7 @@ public class IntegrationTests {
 
         Espresso espresso = Espresso.getDefault();
 
+        espresso.use(Middlewares.requestResponseLogger());
         espresso.get("/list", (request, response) -> response.json(HttpStatus.Code.OK, Map.of("items", items)));
 
         try (var client = HttpClient.newHttpClient()) {

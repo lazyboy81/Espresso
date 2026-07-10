@@ -1,14 +1,18 @@
 package com.github.sinakarimi81.espresso.routing;
 
 import com.github.sinakarimi81.espresso.handler.Handler;
+import com.github.sinakarimi81.espresso.middleware.Middleware;
 import com.github.sinakarimi81.espresso.util.StringUtils;
 import lombok.RequiredArgsConstructor;
+
+import java.util.LinkedHashSet;
 
 @RequiredArgsConstructor
 public class GroupedRoutes implements Router {
 
     private final Routes routes;
     private final String rootPath;
+    private final LinkedHashSet<Middleware> middlewares;
 
     @Override
     public void options(String path, Handler handler) {
@@ -57,5 +61,10 @@ public class GroupedRoutes implements Router {
     public Router group(String root) {
         StringUtils.validUrlInput(root);
         return routes.group(rootPath + root);
+    }
+
+    @Override
+    public void use(Middleware middleware) {
+        middlewares.add(middleware);
     }
 }

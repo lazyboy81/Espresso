@@ -2,16 +2,14 @@ package com.github.sinakarimi81.espresso.routing;
 
 import com.github.sinakarimi81.espresso.exception.PathNotFoundException;
 import com.github.sinakarimi81.espresso.handler.Handler;
+import com.github.sinakarimi81.espresso.middleware.Middleware;
 import com.github.sinakarimi81.espresso.util.DateTimeUtil;
 import com.github.sinakarimi81.espresso.util.StringUtils;
 import org.eclipse.jetty.http.HttpMethod;
 import org.eclipse.jetty.http.HttpStatus;
 
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class Routes implements Router {
 
@@ -22,13 +20,15 @@ public class Routes implements Router {
 
     private final Map<String, Handler> staticRoutes;
     private final Map<String, RouteContainer> dynamicRoutes;
+    private final LinkedHashSet<Middleware> middlewares;
 
     /**
      * if concurrency becomes an issue we can change this to ConcurrentHashMap {@link java.util.concurrent.ConcurrentHashMap}
      */
     public Routes() {
-        staticRoutes = new HashMap<>();
-        dynamicRoutes = new HashMap<>();
+        this.staticRoutes = new HashMap<>();
+        this.dynamicRoutes = new HashMap<>();
+        this.middlewares = new LinkedHashSet<>();
     }
 
     @Override
@@ -71,7 +71,12 @@ public class Routes implements Router {
     @Override
     public Router group(String root) {
         StringUtils.validUrlInput(root);
-        return new GroupedRoutes(this, root);
+        return new GroupedRoutes(this, root, new LinkedHashSet<>());
+    }
+
+    @Override
+    public void use(Middleware middleware) {
+        middlewares.add(middleware);
     }
 
     private void addRoute(String method, String path, Handler handler) {
@@ -113,7 +118,8 @@ public class Routes implements Router {
 
         String staticGroupKey = getStaticGroupKey(method, path);
         if (staticRoutes.containsKey(staticGroupKey)) {
-            return staticRoutes.get(staticGroupKey);
+            Handler handler = staticRoutes.get(staticGroupKey);
+            return applyMiddlewares(handler, middlewares);
         }
 
         RouteContainer routeContainer = dynamicRoutes.get(method);
@@ -121,7 +127,8 @@ public class Routes implements Router {
             throw new PathNotFoundException(String.format("no route was found for method: %s path: %s", method, path));
         }
 
-        return routeContainer.getHandlerForPath(path, pathVars);
+        Handler handler = routeContainer.getHandlerForPath(path, pathVars);
+        return applyMiddlewares(handler, middlewares);
     }
 
     private String getStaticGroupKey(String method, String path) {

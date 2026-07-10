@@ -12,7 +12,7 @@ public class JsonBinding extends Binding {
     private final ObjectMapper mapper = new ObjectMapper();
 
     @Override
-    public <T> T bind(InputStream payload, Class<T> tClass) {
+    public <T> T bind(byte[] payload, Class<T> tClass) {
         if (payload == null) {
             return null;
         }

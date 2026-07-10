@@ -4,6 +4,6 @@ import java.io.InputStream;
 
 public abstract class Binding implements Serialization {
 
-    public abstract  <T> T bind(InputStream payload, Class<T> tClass);
+    public abstract  <T> T bind(byte[] payload, Class<T> tClass);
 
 }

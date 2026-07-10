@@ -7,23 +7,51 @@ import com.github.sinakarimi81.espresso.http.PathVariables;
 import com.github.sinakarimi81.espresso.http.Query;
 import lombok.AllArgsConstructor;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 
-@AllArgsConstructor
 public class Request {
 
-    private Headers headers;
-    private Query query;
-    private PathVariables pathVariables;
-    private FormValues formValues;
-    private InputStream payload;
+    private final String method;
+    private final String path;
+    private final Headers headers;
+    private final Query query;
+    private final PathVariables pathVariables;
+    private final FormValues formValues;
+    // TODO: we can later switch to ByteBuffer and off-heap memory if needed
+    private final byte[] payload;
+
+    public Request(String method, String path, Headers headers, Query query, PathVariables pathVariables, FormValues formValues, InputStream payload) throws IOException {
+        this.method = method;
+        this.path = path;
+        this.headers = headers;
+        this.query = query;
+        this.pathVariables = pathVariables;
+        this.formValues = formValues;
+        this.payload = payload.readAllBytes();
+    }
+
+    /**
+     * @return the request method
+     */
+    public String method() {
+        return method;
+    }
+
+    /**
+     * @return the request path
+     */
+    public String path() {
+        return path;
+    }
 
     /**
      * <p>contains the request header fields either received
      * by the server or to be sent by the client.</p>
      *
-     * @return headers sent by client. see {@link Headers}
+     * @return value sent by client. see {@link Headers}
      */
     public Headers headers() {
         return headers;
@@ -71,7 +99,7 @@ public class Request {
     }
 
     public InputStream asInputStream() {
-        return payload;
+        return new ByteArrayInputStream(payload);
     }
 
     public <T> T json(Class<T> targetType) {
@@ -82,16 +110,8 @@ public class Request {
         return Bindings.xml().bind(payload, targetType);
     }
 
-    public String text() throws IOException {
-        StringBuilder result = new StringBuilder();
-
-        byte[] buffer = new byte[1024];
-        while (payload.read(buffer) > 0) {
-            result.append(new String(buffer));
-            buffer = new byte[1024]; // reset the buffer
-        }
-
-        return result.toString();
+    public String text() {
+        return new String(payload, StandardCharsets.UTF_8);
     }
 
 }

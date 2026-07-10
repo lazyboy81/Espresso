@@ -1,27 +1,28 @@
 package com.github.sinakarimi81.espresso;
 
 import com.github.sinakarimi81.espresso.binding.Bindings;
-import com.github.sinakarimi81.espresso.binding.Serialization;
 import com.github.sinakarimi81.espresso.binding.dto.TemplateData;
 import com.github.sinakarimi81.espresso.binding.impl.HtmlRender;
 import com.github.sinakarimi81.espresso.exception.EspressoException;
-import com.github.sinakarimi81.espresso.exception.PathNotFoundException;
 import com.github.sinakarimi81.espresso.handler.Handler;
 import com.github.sinakarimi81.espresso.http.FormValues;
 import com.github.sinakarimi81.espresso.http.Headers;
 import com.github.sinakarimi81.espresso.http.PathVariables;
 import com.github.sinakarimi81.espresso.http.Query;
+import com.github.sinakarimi81.espresso.middleware.Middleware;
 import com.github.sinakarimi81.espresso.routing.Router;
 import com.github.sinakarimi81.espresso.routing.Routes;
 import com.github.sinakarimi81.espresso.util.DateTimeUtil;
 import com.github.sinakarimi81.espresso.util.Tuple;
 import lombok.extern.slf4j.Slf4j;
 import org.eclipse.jetty.http.HttpHeader;
-import org.eclipse.jetty.http.HttpHeaderValue;
 import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.http.MimeTypes;
 import org.eclipse.jetty.io.Content;
-import org.eclipse.jetty.server.*;
+import org.eclipse.jetty.server.FormFields;
+import org.eclipse.jetty.server.Request;
+import org.eclipse.jetty.server.Response;
+import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.util.Fields;
 
@@ -31,8 +32,8 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -70,11 +71,26 @@ public class Espresso {
 
     private Espresso(int port) {
         this.routes = new Routes();
-        server = new Server(port);
+        this.server = new Server(port);
     }
 
     public Router group(String root) {
         return routes.group(root);
+    }
+
+    /**
+     * global middlewares to be used with all the registered endpoints
+     * @implNote middlewares are applied in the order that they are defined, so be mindful of how you apply them
+     * for example:
+     * <pre>{@code
+     *  espresso.use(requsetIdMiddleware)
+     *  espresso.use(loggerMiddleware)
+     *  }</pre>
+     *  means that first the requestIdMiddleware is applied and then the loggerMiddleware
+     * @param middleware a middleware to be applied
+     */
+    public void use(Middleware middleware) {
+        routes.use(middleware);
     }
 
     public void options(String path, Handler handler) {
@@ -112,8 +128,7 @@ public class Espresso {
 
             @Override
             public boolean handle(Request request, Response response, Callback callback) {
-//                CompletableFuture.runAsync(() -> , executorService);
-                process(request, response, callback);
+                CompletableFuture.runAsync(() -> process(request, response, callback), executorService);
                 return true;
             }
 
@@ -146,6 +161,8 @@ public class Espresso {
             InputStream content = Content.Source.asInputStream(request);
 
             var req = new com.github.sinakarimi81.espresso.handler.Request(
+                    method,
+                    path,
                     headers,
                     query,
                     pathVariables,

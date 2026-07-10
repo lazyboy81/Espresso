@@ -6,44 +6,44 @@ import org.eclipse.jetty.http.HttpHeader;
 import java.util.List;
 
 /**
- * <p>An interface for headers received by server from a request</p>
+ * <p>An interface for value received by server from a request</p>
  */
-public record Headers(HttpFields headers) {
+public record Headers(HttpFields value) {
 
     public static Headers from(HttpFields headers) {
         return new Headers(headers);
     }
 
     public boolean containsHeader(HttpHeader name) {
-        return headers.contains(name);
+        return this.value.contains(name);
     }
 
     public List<String> getHeaderValues(HttpHeader name) {
-        return headers.getValuesList(name);
+        return this.value.getValuesList(name);
     }
 
     public String getHeaderValue(HttpHeader name) {
-        return headers.get(name);
+        return this.value.get(name);
     }
 
     public boolean hasValue(HttpHeader name, String value) {
-        return headers.contains(name, value);
+        return this.value.contains(name, value);
     }
 
     public boolean containsHeader(String name) {
-        return headers.contains(name);
+        return this.value.contains(name);
     }
 
     public List<String> getHeaderValues(String name) {
-        return headers.getValuesList(name);
+        return this.value.getValuesList(name);
     }
 
     public String getHeaderValue(String name) {
-        return headers.get(name);
+        return this.value.get(name);
     }
 
     public boolean hasValue(String name, String value) {
-        return headers.contains(name, value);
+        return this.value.contains(name, value);
     }
 
 }
