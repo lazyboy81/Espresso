@@ -50,7 +50,7 @@ public abstract class Middlewares {
      *  }
      *  }</pre>
      *
-     * @return RequestResponseLogger middleware
+     * @return {@link RequestResponseLogger} middleware
      */
     public static Middleware requestResponseLogger() {
         return new RequestResponseLogger();
@@ -64,8 +64,12 @@ public abstract class Middlewares {
         return null;
     }
 
+    /**
+     * <p>add a request id to the response headers as {@code X-Request-Id} header. if the request already has {@code X-Request-Id} header, then the value of that is used</p>
+     * @return {@link RequestIdGenerator} middleware
+     */
     public static Middleware requestId() {
-        return null;
+        return new RequestIdGenerator();
     }
 
 }
