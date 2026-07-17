@@ -1,16 +1,11 @@
-package com.github.sinakarimi81.espresso;
+package com.github.sinakarimi81.espresso.routing;
 
 import com.github.sinakarimi81.espresso.exception.PathNotFoundException;
 import com.github.sinakarimi81.espresso.handler.Handler;
-import com.github.sinakarimi81.espresso.routing.PathNode;
-import com.github.sinakarimi81.espresso.routing.RouteContainer;
-import com.github.sinakarimi81.espresso.routing.Router;
-import com.github.sinakarimi81.espresso.routing.Routes;
 import org.eclipse.jetty.http.HttpMethod;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.List;

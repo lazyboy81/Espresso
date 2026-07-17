@@ -1,11 +1,11 @@
-package com.github.sinakarimi81.espresso;
+package com.github.sinakarimi81.espresso.integration;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.xml.XmlMapper;
+import com.github.sinakarimi81.espresso.Espresso;
 import com.github.sinakarimi81.espresso.binding.dto.TemplateData;
 import com.github.sinakarimi81.espresso.dto.Item;
 import com.github.sinakarimi81.espresso.middleware.Middlewares;
-import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.eclipse.jetty.http.HttpStatus;
 import org.junit.jupiter.api.Disabled;
