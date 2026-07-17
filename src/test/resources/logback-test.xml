@@ -1,0 +1,11 @@
+<configuration debug="true">
+    <!-- Define a custom appender that stores events in a static list -->
+    <appender name="LIST" class="com.github.sinakarimi81.espresso.config.ListAppender" />
+
+    <!-- Attach it to the logger used by your middleware -->
+    <logger name="com.github.sinakarimi81.espresso.middleware.RequestResponseLogger" level="INFO">
+        <appender-ref ref="LIST" />
+    </logger>
+
+    <root level="OFF" />
+</configuration>
