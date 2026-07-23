@@ -38,8 +38,8 @@ And multiple response formats:
 
 ### Easy to Use Middlewares
 Alongside these request and response formats, espresso offers some middlewares as well:
-- Request Response Logger
-- Request Id Generator
+- Request Response Logger: Log request and response as JSON logs
+- Request ID Generator: generate or use an existing `X-Request-ID` header in the response
 
 Registering a middleware is easy as well:
 ```java
@@ -59,11 +59,11 @@ void main(String[] args) {
     Espresso espresso = Espresso.getDefault();
 
     Router userRoutes = espresso.group("/user");
-    userRoutes.get("/list", (request, response) -> {});
+    userRoutes.get("/list", (request, response) -> {}); // /users/list
     userRoutes.use(Middlewares.requestResponseLogger());
 
     Router orderRoutes = espresso.group("/order");
-    orderRoutes.get("/list", (request, response) -> {});
+    orderRoutes.get("/list", (request, response) -> {}); // /orders/list
     orderRoutes.use(Middlewares.requestId());
 
     espresso.start();
@@ -107,7 +107,7 @@ Add the project dependency to your pom.xml file:
     - Suggesting new features or enhancements
     - Improve/fix documentation
 
->Disclaimer: The source was written mostly by hand buy LLM assistance was used. It is okay to use LLMs and AI agents
+>Disclaimer: The source was written mostly by hand but LLM assistance was used. It is okay to use LLMs and AI agents
 > for contribution to this project. Please try to avoid spamming the issues section and if you have used an LLM, provide the model name and
 > a good description of the problem and you solution for it.
 
