@@ -3,7 +3,6 @@ package com.github.sinakarimi81.espresso.middleware;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 import com.github.sinakarimi81.espresso.binding.Bindings;
 import com.github.sinakarimi81.espresso.exception.EspressoException;
 import com.github.sinakarimi81.espresso.handler.Handler;
@@ -30,7 +29,7 @@ class RequestResponseLogger implements Middleware {
                     .endpoint(request.method(), request.path())
                     .headers(request.headers().value())
                     .payload(request.text(), request.headers().getHeaderValue(HttpHeader.CONTENT_TYPE));
-            log.info("\n{}", requestLog);
+            log.info("{}\n", requestLog);
 
             try {
                 next.handle(request, response);
@@ -46,7 +45,7 @@ class RequestResponseLogger implements Middleware {
 
                 errorLog.payload(e.getMessage(), "application/text");
 
-                log.error("\n{}", errorLog);
+                log.error("{}\n", errorLog);
                 throw e;
             }
 
@@ -63,7 +62,6 @@ class RequestResponseLogger implements Middleware {
     private static class LogBuffer {
         private final ObjectNode logNode;
         private static final ObjectMapper jsonMapper = new ObjectMapper();
-        private static final XmlMapper xmlMapper = new XmlMapper();
 
         public LogBuffer() {
             logNode = jsonMapper.createObjectNode();

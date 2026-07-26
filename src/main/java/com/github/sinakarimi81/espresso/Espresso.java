@@ -36,14 +36,16 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @Slf4j
-public class Espresso {
-
-    private static Espresso INSTANCE = null;
+public class Espresso implements AutoCloseable {
 
     private static final int DEFAULT_PORT = 8080;
-    private final ExecutorService executorService = Executors.newFixedThreadPool(60);
+    private static Espresso INSTANCE = null;
+
+    private final ExecutorService executorService;
+    private final AtomicBoolean startInvoked;
     private final Routes routes;
     private final Server server;
 
@@ -58,6 +60,7 @@ public class Espresso {
         }
     }
 
+    // TODO: replace with a Options class which we will use to config the server
     public static Espresso withPort(int port) {
         try {
             if (INSTANCE == null) {
@@ -70,8 +73,22 @@ public class Espresso {
     }
 
     private Espresso(int port) {
+        this.startInvoked = new AtomicBoolean();
+        this.executorService = Executors.newFixedThreadPool(60);
+
         this.routes = new Routes();
         this.server = new Server(port);
+
+        // this is blocking
+        this.server.setHandler(new org.eclipse.jetty.server.Handler.Abstract() {
+
+            @Override
+            public boolean handle(Request request, Response response, Callback callback) {
+                CompletableFuture.runAsync(() -> process(request, response, callback), executorService);
+                return true;
+            }
+
+        });
     }
 
     public Router group(String root) {
@@ -122,25 +139,41 @@ public class Espresso {
     }
 
     public void start() {
-
-        // this is blocking
-        server.setHandler(new org.eclipse.jetty.server.Handler.Abstract() {
-
-            @Override
-            public boolean handle(Request request, Response response, Callback callback) {
-                CompletableFuture.runAsync(() -> process(request, response, callback), executorService);
-                return true;
-            }
-
-        });
+        if (!startInvoked.compareAndSet(false, true)) {
+            throw new IllegalStateException("Espresso server has already been started");
+        }
 
         try {
             server.start();
             server.join();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Server thread was interrupted", e);
         } catch (Exception e) {
-            log.error("failed to start the server", e);
-            throw new RuntimeException(e);
+            throw new IllegalStateException("Failed to start the server", e);
+        } finally {
+            startInvoked.set(false);
         }
+    }
+
+    public void shutdown() {
+        try {
+            if (server.isRunning() || server.isStarting()) {
+                server.stop();
+            }
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to stop the server", e);
+        }
+    }
+
+    public boolean isStarted() {
+        return server.isStarted();
+    }
+
+    @Override
+    public void close() {
+        shutdown();
+        executorService.shutdown();
     }
 
     private void process(Request request, Response response, Callback callback) {
