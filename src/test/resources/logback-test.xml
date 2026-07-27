@@ -1,9 +1,0 @@
-<configuration debug="true">
-    <appender name="LIST" class="com.github.sinakarimi81.espresso.config.ListAppender" />
-
-    <logger name="com.github.sinakarimi81.espresso.middleware.RequestResponseLogger" level="INFO">
-        <appender-ref ref="LIST" />
-    </logger>
-
-    <root level="OFF" />
-</configuration>

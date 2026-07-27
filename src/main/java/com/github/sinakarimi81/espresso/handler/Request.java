@@ -6,6 +6,7 @@ import com.github.sinakarimi81.espresso.http.Headers;
 import com.github.sinakarimi81.espresso.http.PathVariables;
 import com.github.sinakarimi81.espresso.http.Query;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;

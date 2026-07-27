@@ -1,13 +1,12 @@
 package com.github.sinakarimi81.espresso.integration;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 import com.github.sinakarimi81.espresso.Espresso;
 import com.github.sinakarimi81.espresso.binding.dto.TemplateData;
 import com.github.sinakarimi81.espresso.dto.Item;
-import com.github.sinakarimi81.espresso.middleware.Middlewares;
-import lombok.extern.slf4j.Slf4j;
 import org.eclipse.jetty.http.HttpStatus;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
@@ -21,27 +20,42 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.IntStream;
 
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 
-@Slf4j
 public class IntegrationTests {
+
+    private static Espresso espresso;
+    private static ExecutorService serverExecutor;
+
+    @BeforeAll
+    static void startServer() {
+        espresso = Espresso.getDefault();
+
+        // json output
+        List<Item> items = List.of(new Item(1L, "create server", "create an http server"));
+        espresso.get("/list", (request, response) -> response.json(HttpStatus.Code.OK, Map.of("items", items)));
+
+        // HTML output
+        espresso.get("/hello", (request, response) -> response.html(HttpStatus.Code.OK, TemplateData.builder().name("index").build()));
+
+        serverExecutor = Executors.newSingleThreadExecutor();
+        serverExecutor.submit(espresso::start);
+    }
+
+    @AfterAll
+    static void stopServer() throws Exception {
+        espresso.shutdown();
+        serverExecutor.shutdownNow();
+    }
 
     @Test
     public void handleGetRequest() throws Exception {
-        List<Item> items = List.of(new Item(1L, "create server", "create an http server"));
-
-        Espresso espresso = Espresso.getDefault();
-
-        espresso.use(Middlewares.requestResponseLogger());
-        espresso.get("/list", (request, response) -> response.json(HttpStatus.Code.OK, Map.of("items", items)));
-
         try (var client = HttpClient.newHttpClient()) {
-            CompletableFuture.runAsync(espresso::start);
-
             HttpRequest request = HttpRequest.newBuilder()
                     .GET()
                     .version(HttpClient.Version.HTTP_1_1)
@@ -57,12 +71,7 @@ public class IntegrationTests {
 
     @Test
     public void handleGetRequest_HTML() throws Exception {
-        Espresso espresso = Espresso.getDefault();
-
-        espresso.get("/hello", (request, response) -> response.html(HttpStatus.Code.OK, TemplateData.builder().name("index").build()));
-
         try (var client = HttpClient.newHttpClient()) {
-            CompletableFuture.runAsync(espresso::start);
 
             HttpRequest request = HttpRequest.newBuilder()
                     .GET()
@@ -81,15 +90,9 @@ public class IntegrationTests {
 
     @Test
     public void handleHeadRequest() throws Exception {
-        List<Item> items = List.of(new Item(1L, "create server", "create an http server"));
-
-        Espresso espresso = Espresso.getDefault();
-        espresso.head("/list", (request, response) -> response.json(HttpStatus.Code.OK, Map.of("items", items)));
-
+        espresso.head("/list", (request, response) -> response.json(HttpStatus.Code.OK, Map.of("items", List.of())));
 
         try (var client = HttpClient.newHttpClient()) {
-            CompletableFuture.runAsync(espresso::start);
-
             HttpRequest request = HttpRequest.newBuilder()
                     .HEAD()
                     .version(HttpClient.Version.HTTP_1_1)
@@ -107,22 +110,18 @@ public class IntegrationTests {
     public void handlePostRequest_JSON() throws Exception {
         List<Item> items = new ArrayList<>();
 
-        Espresso espresso = Espresso.getDefault();
-        espresso.post("/add", (request, response) -> {
+        espresso.post("/add-json", (request, response) -> {
             Item item = request.json(Item.class);
             items.add(item);
             response.json(HttpStatus.Code.CREATED, Map.of("message", "created"));
         });
 
-
         try (var client = HttpClient.newHttpClient()) {
-            CompletableFuture.runAsync(espresso::start);
-
             Item input = new Item(1L, "create server", "create an http server");
             HttpRequest request = HttpRequest.newBuilder()
                     .POST(HttpRequest.BodyPublishers.ofString("{\"id\": 1, \"name\": \"create server\", \"description\": \"create an http server\"}"))
                     .version(HttpClient.Version.HTTP_1_1)
-                    .uri(URI.create("http://localhost:8080/add"))
+                    .uri(URI.create("http://localhost:8080/add-json"))
                     .build();
             HttpResponse<String> result = client.send(request, HttpResponse.BodyHandlers.ofString());
 
@@ -136,22 +135,18 @@ public class IntegrationTests {
     public void handlePostRequest_XML() throws Exception {
         List<Item> items = new ArrayList<>();
 
-        Espresso espresso = Espresso.getDefault();
-        espresso.post("/add", (request, response) -> {
+        espresso.post("/add-xml", (request, response) -> {
             Item item = request.xml(Item.class);
             items.add(item);
             response.xml(HttpStatus.Code.CREATED, Map.of("message", "created"));
         });
 
-
         try (var client = HttpClient.newHttpClient()) {
-            CompletableFuture.runAsync(espresso::start);
-
             Item input = new Item(1L, "create server", "create an http server");
             HttpRequest request = HttpRequest.newBuilder()
                     .POST(HttpRequest.BodyPublishers.ofString("<Item><id>1</id><name>create server</name><description>create an http server</description></Item>"))
                     .version(HttpClient.Version.HTTP_1_1)
-                    .uri(URI.create("http://localhost:8080/add"))
+                    .uri(URI.create("http://localhost:8080/add-xml"))
                     .build();
             HttpResponse<String> result = client.send(request, HttpResponse.BodyHandlers.ofString());
 
@@ -164,26 +159,20 @@ public class IntegrationTests {
 
     @Test
     public void handlePostRequest_Text() throws Exception {
-        List<Item> items = new ArrayList<>();
+        List<String> items = new ArrayList<>();
 
-        Espresso espresso = Espresso.getDefault();
-        espresso.post("/add", (request, response) -> {
+        espresso.post("/add-text", (request, response) -> {
             String text = request.text();
-            XmlMapper m = new XmlMapper();
-            Item item = m.readValue(text, Item.class);
-            items.add(item);
+            items.add(text);
             response.text(HttpStatus.Code.CREATED, "created");
         });
 
-
         try (var client = HttpClient.newHttpClient()) {
-            CompletableFuture.runAsync(espresso::start);
-
-            Item input = new Item(1L, "create server", "create an http server");
+            String input = "test text input";
             HttpRequest request = HttpRequest.newBuilder()
-                    .POST(HttpRequest.BodyPublishers.ofString("<Item><id>1</id><name>create server</name><description>create an http server</description></Item>"))
+                    .POST(HttpRequest.BodyPublishers.ofString(input))
                     .version(HttpClient.Version.HTTP_1_1)
-                    .uri(URI.create("http://localhost:8080/add"))
+                    .uri(URI.create("http://localhost:8080/add-text"))
                     .build();
             HttpResponse<String> result = client.send(request, HttpResponse.BodyHandlers.ofString());
 
@@ -202,7 +191,6 @@ public class IntegrationTests {
         List<String> names = new ArrayList<>();
         List<String> roles = new ArrayList<>();
 
-        Espresso espresso = Espresso.getDefault();
         espresso.post("/form", (request, response) -> {
             List<String> tags = request.formValue().getValues("tag");
             checkItems.addAll(tags);
@@ -211,10 +199,7 @@ public class IntegrationTests {
             response.json(HttpStatus.Code.CREATED, tags);
         });
 
-
         try (var client = HttpClient.newHttpClient()) {
-            CompletableFuture.runAsync(espresso::start);
-
             HttpRequest request = HttpRequest.newBuilder()
                     .POST(HttpRequest.BodyPublishers.ofString("tag=java&tag=nio&tag=http&name=John+Doe&role=admin+%26+developer&key="))
                     .setHeader("Content-Type", "application/x-www-form-urlencoded")
@@ -236,9 +221,7 @@ public class IntegrationTests {
         var mapper = new ObjectMapper();
         List<Item> items = new ArrayList<>();
 
-        Espresso espresso = Espresso.getDefault();
-
-        espresso.post("/add", (request, response) -> {
+        espresso.post("/add-no-content", (request, response) -> {
             Item item = request.json(Item.class);
             items.add(item);
             response.json(HttpStatus.Code.NO_CONTENT);
@@ -246,13 +229,11 @@ public class IntegrationTests {
 
 
         try (var client = HttpClient.newHttpClient()) {
-            CompletableFuture.runAsync(espresso::start);
-
             Item input = new Item(1L, "create server", "create an http server");
             HttpRequest request = HttpRequest.newBuilder()
                     .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(input)))
                     .version(HttpClient.Version.HTTP_1_1)
-                    .uri(URI.create("http://localhost:8080/add"))
+                    .uri(URI.create("http://localhost:8080/add-no-content"))
                     .build();
 
             // this is intentional to make sure that no body is sent
@@ -268,9 +249,7 @@ public class IntegrationTests {
     @Test
     @Disabled
     public void handleConsecutiveRequests() throws Exception {
-        Espresso espresso = Espresso.getDefault();
-
-        espresso.get("/list", (request, response) -> response.json(HttpStatus.Code.OK, Map.of("ok", true)));
+        espresso.get("/map", (request, response) -> response.json(HttpStatus.Code.OK, Map.of("ok", true)));
 
         try (var serverExec = Executors.newSingleThreadExecutor()) {
 
@@ -289,7 +268,7 @@ public class IntegrationTests {
                                             HttpRequest.newBuilder()
                                                     .GET()
                                                     .version(HttpClient.Version.HTTP_1_1)
-                                                    .uri(URI.create("http://localhost:8080/list"))
+                                                    .uri(URI.create("http://localhost:8080/map"))
                                                     .build(),
                                             HttpResponse.BodyHandlers.ofString()
                                     );
@@ -313,15 +292,11 @@ public class IntegrationTests {
 
     @Test
     public void handlePathNotFoundException() throws Exception {
-        Espresso espresso = Espresso.getDefault();
-
         try (var client = HttpClient.newHttpClient()) {
-            CompletableFuture.runAsync(espresso::start);
-
             HttpRequest request = HttpRequest.newBuilder()
                     .GET()
                     .version(HttpClient.Version.HTTP_1_1)
-                    .uri(URI.create("http://localhost:8080/list"))
+                    .uri(URI.create("http://localhost:8080/not-found"))
                     .build();
             HttpResponse<String> result = client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
 
@@ -330,25 +305,21 @@ public class IntegrationTests {
             assertThatJson(result.body()).isNotNull().isObject()
                     .containsEntry("status", 404)
                     .containsEntry("error", "Not Found")
-                    .containsEntry("message", "no route was found for method: GET path: /list");
+                    .containsEntry("message", "no route was found for method: GET path: /not-found");
         }
     }
 
     @Test
     public void handle5xxException() throws Exception {
-        Espresso espresso = Espresso.getDefault();
-
-        espresso.get("/list", (request, response) -> {
+        espresso.get("/error", (request, response) -> {
             throw new Exception("throws exception");
         });
 
         try (var client = HttpClient.newHttpClient()) {
-            CompletableFuture.runAsync(espresso::start);
-
             HttpRequest request = HttpRequest.newBuilder()
                     .GET()
                     .version(HttpClient.Version.HTTP_1_1)
-                    .uri(URI.create("http://localhost:8080/list"))
+                    .uri(URI.create("http://localhost:8080/error"))
                     .build();
             HttpResponse<String> result = client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
 
@@ -364,16 +335,12 @@ public class IntegrationTests {
 
     @Test
     public void handlePathNotFoundException_returnHTML() throws Exception {
-        Espresso espresso = Espresso.getDefault();
-
         try (var client = HttpClient.newHttpClient()) {
-            CompletableFuture.runAsync(espresso::start);
-
             HttpRequest request = HttpRequest.newBuilder()
                     .GET()
                     .setHeader("Accept", "text/html")
                     .version(HttpClient.Version.HTTP_1_1)
-                    .uri(URI.create("http://localhost:8080/list"))
+                    .uri(URI.create("http://localhost:8080/html-not-found"))
                     .build();
             HttpResponse<String> result = client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
 

@@ -6,14 +6,18 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class ListAppender extends AppenderBase<ILoggingEvent> {
-    public static final List<ILoggingEvent> events = new ArrayList<>();
+    private static final List<ILoggingEvent> events = new ArrayList<>();
+
+    public List<ILoggingEvent> getEvents() {
+        return events;
+    }
 
     @Override
-    protected void append(ILoggingEvent e) {
+    public void append(ILoggingEvent e) {
         events.add(e);
     }
 
-    public static void clear() {
+    public void clear() {
         events.clear();
     }
 }

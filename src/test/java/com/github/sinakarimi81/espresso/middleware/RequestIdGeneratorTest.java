@@ -1,59 +1,138 @@
 package com.github.sinakarimi81.espresso.middleware;
 
-import com.github.sinakarimi81.espresso.Espresso;
+import com.github.sinakarimi81.espresso.handler.Handler;
+import com.github.sinakarimi81.espresso.handler.Request;
+import com.github.sinakarimi81.espresso.handler.Response;
+import com.github.sinakarimi81.espresso.http.Headers;
+import lombok.RequiredArgsConstructor;
+import org.eclipse.jetty.http.HttpFields;
 import org.eclipse.jetty.http.HttpStatus;
+import org.eclipse.jetty.util.Callback;
 import org.junit.jupiter.api.Test;
 
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.ByteBuffer;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.assertj.core.api.Assertions.fail;
 
 public class RequestIdGeneratorTest {
 
     @Test
     public void testRequestId() {
-        var espresso = Espresso.getDefault();
-        espresso.get("/", (request, response) -> response.text(HttpStatus.Code.OK, "Test"));
-        espresso.use(Middlewares.requestId());
+        try {
+            var middleware = new RequestIdGenerator();
 
-        var request = HttpRequest.newBuilder().GET().uri(URI.create("http://localhost:8080/")).build();
-        try (var client = HttpClient.newHttpClient()) {
-            CompletableFuture.runAsync(espresso::start);
+            Handler endpoint = (request, response) -> response.text(HttpStatus.Code.OK, "Test");
 
-            var response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            Handler decorated = middleware.handle(endpoint);
 
-            assertThat(response.statusCode()).isEqualTo(200);
-            assertThat(response.headers().map().get("X-Request-ID")).isNotEmpty();
+            Request request = createTestRequest(false);
+            Response response = createTestResponse();
+
+            decorated.handle(request, response);
+            assertThat(response.headers().get("X-Request-ID")).isNotBlank();
         } catch (Exception e) {
-            fail("test request id failed", e);
+            fail("test failed due to exception", e);
         }
     }
 
     @Test
     public void testRequestId_WhenHeaderExistsInRequest() {
-        var espresso = Espresso.getDefault();
-        espresso.get("/", (request, response) -> response.text(HttpStatus.Code.OK, "Test"));
-        espresso.use(Middlewares.requestId());
+        try {
+            var middleware = new RequestIdGenerator();
 
-        var request = HttpRequest.newBuilder().GET()
-                .uri(URI.create("http://localhost:8080/"))
-                .setHeader("X-Request-ID", "<sample-request-id>")
-                .build();
-        try (var client = HttpClient.newHttpClient()) {
-            CompletableFuture.runAsync(espresso::start);
+            Handler endpoint = (request, response) -> response.text(HttpStatus.Code.OK, "Test");
 
-            var response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            Handler decorated = middleware.handle(endpoint);
 
-            assertThat(response.statusCode()).isEqualTo(200);
-            assertThat(response.headers().map().get("X-Request-ID")).containsOnly("<sample-request-id>");
+            Request request = createTestRequest(true);
+            Response response = createTestResponse();
+
+            decorated.handle(request, response);
+
+            assertThat(response.headers().get("X-Request-ID")).isEqualTo("<sample-request-id>");
         } catch (Exception e) {
-            fail("test request id failed", e);
+            fail("test failed due to exception", e);
         }
     }
+
+    private Request createTestRequest(boolean sampleHeader) throws IOException {
+        HttpFields.Mutable httpFields = HttpFields.build();
+        httpFields.put("X-Request-ID", "<sample-request-id>");
+        var header = new Headers(sampleHeader ? httpFields : HttpFields.build());
+
+        return new Request("GET", "/", header, null, null, null, InputStream.nullInputStream());
+    }
+
+    private Response createTestResponse() {
+        return new Response(new MockResponse(HttpFields.build()), Callback.NOOP);
+    }
+
+    private record MockResponse(HttpFields.Mutable httpFields) implements org.eclipse.jetty.server.Response {
+
+            @Override
+            public org.eclipse.jetty.server.Request getRequest() {
+                return null;
+            }
+
+            @Override
+            public int getStatus() {
+                return 0;
+            }
+
+            @Override
+            public void setStatus(int code) {
+
+            }
+
+            @Override
+            public HttpFields.Mutable getHeaders() {
+                return httpFields;
+            }
+
+            @Override
+            public Supplier<HttpFields> getTrailersSupplier() {
+                return null;
+            }
+
+            @Override
+            public void setTrailersSupplier(Supplier<HttpFields> trailers) {
+
+            }
+
+            @Override
+            public boolean isCommitted() {
+                return false;
+            }
+
+            @Override
+            public boolean hasLastWrite() {
+                return false;
+            }
+
+            @Override
+            public boolean isCompletedSuccessfully() {
+                return false;
+            }
+
+            @Override
+            public void reset() {
+
+            }
+
+            @Override
+            public CompletableFuture<Void> writeInterim(int status, HttpFields headers) {
+                return null;
+            }
+
+            @Override
+            public void write(boolean last, ByteBuffer byteBuffer, Callback callback) {
+
+            }
+        }
 
 }

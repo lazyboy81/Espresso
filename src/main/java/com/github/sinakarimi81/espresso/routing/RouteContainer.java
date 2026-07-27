@@ -65,7 +65,7 @@ public class RouteContainer {
             return handler;
         }
 
-        throw new PathNotFoundException(String.format("no route was found for path: %s", fullPath));
+        throw new PathNotFoundException(String.format("no route was found for method: %s path: %s", method, fullPath));
     }
 
     private Handler traverseTree(PathNode root, String fullPath, Map<String, String> pathVars) {
