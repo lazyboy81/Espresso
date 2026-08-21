@@ -3,7 +3,6 @@ package io.github.lazyboy81.espresso.jetty;
 import io.github.lazyboy81.espresso.core.engine.RequestProcessor;
 import io.github.lazyboy81.espresso.core.http.FormValues;
 import io.github.lazyboy81.espresso.core.http.Headers;
-import io.github.lazyboy81.espresso.core.http.PathVariables;
 import io.github.lazyboy81.espresso.core.http.Query;
 import io.github.lazyboy81.espresso.core.http.constants.HttpHeader;
 import io.github.lazyboy81.espresso.core.http.constants.MediaType;
@@ -26,31 +25,20 @@ public class JettyRequestProcessor implements RequestProcessor<Request, Response
     @Override
     public io.github.lazyboy81.espresso.core.handler.Request processRequest(Request request) {
         try {
-            var method = request.getMethod();
-            var path = request.getHttpURI().getPath();
+            var requestBuilder = io.github.lazyboy81.espresso.core.handler.Request.RequestBuilder.newBuilder();
 
-            var headers = getHeaders(request);
+            requestBuilder.method(request.getMethod());
+            requestBuilder.path(request.getHttpURI().getPath());
 
-            var query = getQuery(request);
-
-//            Tuple<PathVariables, Handler> pathVarsAndHandler = extractPathVariablesAndReturnHandler(method, path);
-
-//            PathVariables pathVariables = pathVarsAndHandler.left();
-            PathVariables pathVariables = new PathVariables(Map.of());
-
-            FormValues formValues = checkHeaderAndReturnFormValues(headers, request);
+            Headers headers = getHeaders(request);
+            requestBuilder.headers(headers);
+            requestBuilder.formValues(checkHeaderAndReturnFormValues(headers, request));
+            requestBuilder.query(getQuery(request));
 
             ByteBuffer byteBuffer = Content.Source.asByteBuffer(request);
+            requestBuilder.payload(byteBuffer.array());
 
-            return new io.github.lazyboy81.espresso.core.handler.Request(
-                    method,
-                    path,
-                    headers,
-                    query,
-                    pathVariables,
-                    formValues,
-                    byteBuffer.array()
-            );
+            return requestBuilder.build();
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

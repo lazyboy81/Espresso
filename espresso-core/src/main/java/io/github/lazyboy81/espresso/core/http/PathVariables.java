@@ -4,6 +4,10 @@ import java.util.Map;
 
 public record PathVariables(Map<String, String> params) {
 
+    public PathVariables(Map<String, String> params) {
+        this.params = Map.copyOf(params);
+    }
+
     public boolean isEmpty() {
         return params == null || params.isEmpty();
     }

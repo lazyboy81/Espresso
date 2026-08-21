@@ -23,7 +23,7 @@ public class Request {
     // TODO: we can later switch to ByteBuffer and off-heap memory if needed
     private final byte[] payload;
 
-    public Request(String method, String path, Headers headers, Query query, PathVariables pathVariables, FormValues formValues, byte[] payload) {
+    private Request(String method, String path, Headers headers, Query query, PathVariables pathVariables, FormValues formValues, byte[] payload) {
         this.method = method;
         this.path = path;
         this.headers = headers;
@@ -112,4 +112,94 @@ public class Request {
     public byte[] raw() {
         return Arrays.copyOf(payload, payload.length);
     }
+
+    public RequestBuilder toBuilder() {
+        RequestBuilder requestBuilder = new RequestBuilder();
+
+        if (method != null) {
+            requestBuilder.method(this.method);
+        }
+
+        if (path != null) {
+            requestBuilder.path(this.path);
+        }
+
+        if (headers != null) {
+            requestBuilder.headers(this.headers);
+        }
+
+        if (query != null) {
+            requestBuilder.query(this.query);
+        }
+
+        if (pathVariables != null) {
+            requestBuilder.pathVariables(this.pathVariables);
+        }
+
+        if (formValues != null) {
+            requestBuilder.formValues(this.formValues);
+        }
+
+        if (payload != null) {
+            requestBuilder.payload(this.payload);
+        }
+
+        return requestBuilder;
+    }
+
+    public static class RequestBuilder {
+
+        private String method;
+        private String path;
+        private Headers headers;
+        private Query query;
+        private PathVariables pathVariables;
+        private FormValues formValues;
+        private byte[] payload;
+
+        public static RequestBuilder newBuilder() {
+            return new RequestBuilder();
+        }
+
+        public RequestBuilder method(String method) {
+            this.method = method;
+            return this;
+        }
+
+        public RequestBuilder path(String path) {
+            this.path = path;
+            return this;
+        }
+
+        public RequestBuilder headers(Headers headers) {
+            this.headers = headers;
+            return this;
+        }
+
+        public RequestBuilder query(Query query) {
+            this.query = query;
+            return this;
+        }
+
+        public RequestBuilder pathVariables(PathVariables pathVariables) {
+            this.pathVariables = pathVariables;
+            return this;
+        }
+
+        public RequestBuilder formValues(FormValues formValues) {
+            this.formValues = formValues;
+            return this;
+        }
+
+        public RequestBuilder payload(byte[] payload) {
+            this.payload = payload;
+            return this;
+        }
+
+        public Request build() {
+            return new Request(this.method, this.path, this.headers, this.query, this.pathVariables, this.formValues, this.payload);
+        }
+
+    }
+
 }

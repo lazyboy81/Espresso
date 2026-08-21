@@ -6,6 +6,10 @@ import java.util.Map;
 
 public record Headers(Map<String, String> value) {
 
+    public Headers(Map<String, String> value) {
+        this.value = Map.copyOf(value);
+    }
+
     public static Headers from(Map<String, String> value) {
         return new Headers(value);
     }

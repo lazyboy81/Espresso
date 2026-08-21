@@ -8,6 +8,10 @@ import java.util.Set;
 
 public record FormValues(Map<String, String> params) {
 
+    public FormValues(Map<String, String> params) {
+        this.params = Map.copyOf(params);
+    }
+
     public Set<String> getAllNames() {
         return params.keySet();
     }

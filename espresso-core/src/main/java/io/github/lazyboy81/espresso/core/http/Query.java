@@ -7,6 +7,10 @@ import java.util.Set;
 
 public record Query(Map<String, String> params) {
 
+    public Query(Map<String, String> params) {
+        this.params = Map.copyOf(params);
+    }
+
     public static Query from(Map<String, String> params) {
         return new Query(params);
     }

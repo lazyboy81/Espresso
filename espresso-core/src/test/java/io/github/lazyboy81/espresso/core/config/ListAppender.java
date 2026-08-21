@@ -1,4 +1,4 @@
-package io.github.lazyboy81.espresso.config;
+package io.github.lazyboy81.espresso.core.config;
 
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.AppenderBase;

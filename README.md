@@ -53,7 +53,7 @@ void main(String[] args) {
 }
 ```
 ### Grouping URLs
-You can group URLS and create subbranches of routes, for  example:
+You can group URLS and create subbranches of routeRegistry, for  example:
 ```java
 void main(String[] args) {
     Espresso espresso = Espresso.getDefault();

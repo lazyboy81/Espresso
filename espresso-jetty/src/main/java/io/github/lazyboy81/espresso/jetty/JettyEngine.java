@@ -1,6 +1,7 @@
 package io.github.lazyboy81.espresso.jetty;
 
 import io.github.lazyboy81.espresso.core.engine.ServerEngine;
+import io.github.lazyboy81.espresso.core.routing.RouteRegistry;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Response;
 import org.eclipse.jetty.server.Server;
@@ -31,8 +32,13 @@ public class JettyEngine implements ServerEngine {
                 @Override
                 public boolean handle(Request request, Response response, Callback callback) {
                     var processor = new JettyRequestProcessor(callback);
-                    processor.processRequest(request);
-                    processor.processResponse(response);
+                    var req = processor.processRequest(request);
+                    var res = processor.processResponse(response);
+
+                    // TODO: call the handler here
+                    //  find path variables, set them to the builder
+                    req = req.toBuilder().pathVariables(null).build();
+
                     return true;
                 }
 
