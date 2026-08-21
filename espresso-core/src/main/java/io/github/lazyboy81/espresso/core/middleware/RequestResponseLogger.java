@@ -118,7 +118,7 @@ class RequestResponseLogger implements Middleware {
             if (Bindings.json().canHandle(contentTypeValue)) {
                 logNode.set("body", jsonMapper.readTree(payload));
             } else {
-                logNode.put("body", payload);
+                logNode.put("body", new String(payload));
             }
         }
 

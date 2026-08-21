@@ -1,13 +1,14 @@
 package io.github.lazyboy81.espresso.core.http;
 
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 public record Headers(Map<String, String> value) {
 
     public Headers(Map<String, String> value) {
-        this.value = Map.copyOf(value);
+        this.value = new HashMap<>(value);
     }
 
     public static Headers from(Map<String, String> value) {

@@ -9,12 +9,12 @@ class RequestIdGenerator implements Middleware {
     @Override
     public Handler handle(Handler next) {
         return (request, response) -> {
-            String headerValue = request.headers().getHeaderValue("X-Request-Id");
+            String headerValue = request.headers().getHeaderValue("X-Request-ID");
             if (headerValue == null || headerValue.isBlank()) {
                 headerValue = UUID.randomUUID().toString();
             }
 
-            response.header("X-Request-Id", headerValue);
+            response.header("X-Request-ID", headerValue);
 
             next.handle(request, response);
         };
