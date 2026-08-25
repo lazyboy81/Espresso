@@ -26,7 +26,7 @@ public enum HttpMethod {
         return val;
     }
 
-    public HttpMethod fromValue(String method) {
+    public static HttpMethod fromValue(String method) {
         for (HttpMethod value : values()) {
             if (value.val.equalsIgnoreCase(method)) {
                 return value;

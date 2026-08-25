@@ -5,12 +5,13 @@ import io.github.lazyboy81.espresso.core.handler.Handler;
 import io.github.lazyboy81.espresso.core.http.constants.HttpMethod;
 import io.github.lazyboy81.espresso.core.middleware.Middleware;
 
-import java.util.*;
-import java.util.regex.MatchResult;
+import java.util.ArrayList;
+import java.util.EnumMap;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public final class RouteRegistry {
+public final class RouteRegistry implements RouteResolver {
 
     private static final Pattern PATH_VAR_NO_NAME_PATTERN = Pattern.compile(":(?![A-Za-z0-9]+)");
     private static final Pattern PATH_VAR_MULTI_CAPTURE_PATTERN = Pattern.compile(":([A-Za-z0-9_-]+)(?=.*:\\1(?=/|$))");
@@ -141,6 +142,7 @@ public final class RouteRegistry {
         return result;
     }
 
+    @Override
     public RouteMatch resolve(HttpMethod method, String path) {
         MethodRouteTable table = routesByMethod.get(method);
         if (table == null) {

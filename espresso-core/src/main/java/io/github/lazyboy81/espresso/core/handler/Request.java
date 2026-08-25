@@ -7,7 +7,6 @@ import io.github.lazyboy81.espresso.core.http.PathVariables;
 import io.github.lazyboy81.espresso.core.http.Query;
 
 import java.io.ByteArrayInputStream;
-import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;

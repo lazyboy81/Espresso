@@ -1,23 +1,33 @@
 package io.github.lazyboy81.espresso.jetty;
 
 import io.github.lazyboy81.espresso.core.engine.ServerEngine;
-import io.github.lazyboy81.espresso.core.routing.RouteRegistry;
-import org.eclipse.jetty.server.Request;
-import org.eclipse.jetty.server.Response;
+import io.github.lazyboy81.espresso.core.routing.RouteResolver;
+import org.eclipse.jetty.server.HttpConnectionFactory;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
-import org.eclipse.jetty.util.Callback;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class JettyEngine implements ServerEngine {
 
+    private final JettyBlockingHandler handler;
     private final AtomicBoolean startInvoked;
     private final Server server;
 
-    public JettyEngine(int port) {
+    public JettyEngine(JettyOptions options, RouteResolver routeResolver) {
+        this.handler = new JettyBlockingHandler(new JettyRequestProcessor(), routeResolver);
         this.startInvoked = new AtomicBoolean();
-        this.server = new Server(port);
+        this.server = new Server();
+
+        // Create a ServerConnector instance on port 8080.
+        ServerConnector connector = new ServerConnector(
+                server,
+                options.getAcceptorsOrDefault(),
+                options.getSelectorsOrDefault(),
+                new HttpConnectionFactory() // look this one up
+        );
+        connector.setPort(options.getPortOrDefault());
+        server.addConnector(connector);
     }
 
     @Override
@@ -27,23 +37,7 @@ public class JettyEngine implements ServerEngine {
         }
 
         try {
-            this.server.setHandler(new org.eclipse.jetty.server.Handler.Abstract() {
-
-                @Override
-                public boolean handle(Request request, Response response, Callback callback) {
-                    var processor = new JettyRequestProcessor(callback);
-                    var req = processor.processRequest(request);
-                    var res = processor.processResponse(response);
-
-                    // TODO: call the handler here
-                    //  find path variables, set them to the builder
-                    req = req.toBuilder().pathVariables(null).build();
-
-                    return true;
-                }
-
-            });
-
+            this.server.setHandler(handler);
             server.start();
         } catch (Exception e) {
             throw new IllegalStateException("Failed to start the server", e);

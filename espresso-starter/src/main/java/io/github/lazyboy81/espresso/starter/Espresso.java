@@ -1,23 +1,23 @@
-package io.github.lazyboy81.espresso.core;
+package io.github.lazyboy81.espresso.starter;
 
 import io.github.lazyboy81.espresso.core.engine.ServerEngine;
 import io.github.lazyboy81.espresso.core.handler.Handler;
-import io.github.lazyboy81.espresso.core.http.PathVariables;
 import io.github.lazyboy81.espresso.core.middleware.Middleware;
+import io.github.lazyboy81.espresso.core.routing.RouteGroup;
 import io.github.lazyboy81.espresso.core.routing.RouteRegistry;
+import io.github.lazyboy81.espresso.jetty.JettyEngine;
+import io.github.lazyboy81.espresso.jetty.JettyOptions;
 import lombok.extern.slf4j.Slf4j;
-
-import java.util.HashMap;
 
 @Slf4j
 public class Espresso {
 
-    private RouteRegistry routeRegistry;
-    private ServerEngine server;
+    private final RouteRegistry routeRegistry;
+    private final ServerEngine server;
 
-    public Espresso(RouteRegistry routeRegistry, ServerEngine server) {
-        this.routeRegistry = routeRegistry;
-        this.server = server;
+    public Espresso(JettyOptions options) {
+        this.routeRegistry = new RouteRegistry();
+        this.server = new JettyEngine(options, routeRegistry);
     }
 
     /**
@@ -34,6 +34,10 @@ public class Espresso {
      */
     public void use(Middleware middleware) {
         routeRegistry.use(middleware);
+    }
+
+    public RouteGroup group(String root) {
+        return routeRegistry.group(root);
     }
 
     public void options(String path, Handler handler) {
@@ -62,6 +66,19 @@ public class Espresso {
 
     public void any(String path, Handler handler) {
         routeRegistry.any(path, handler);
+    }
+
+    public void start() {
+        server.start();
+        server.join();
+    }
+
+    public void shutdown() {
+        server.stop();
+    }
+
+    public int boundPort() {
+        return server.boundPort();
     }
 
 }

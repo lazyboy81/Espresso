@@ -9,7 +9,7 @@
         <version>1.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>espresso-jetty</artifactId>
+    <artifactId>espresso-starter</artifactId>
 
     <properties>
         <maven.compiler.source>21</maven.compiler.source>
@@ -19,13 +19,14 @@
 
     <dependencies>
         <dependency>
-            <groupId>org.eclipse.jetty</groupId>
-            <artifactId>jetty-server</artifactId>
+            <groupId>io.github.lazyboy81</groupId>
+            <artifactId>espresso-core</artifactId>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>io.github.lazyboy81</groupId>
-            <artifactId>espresso-core</artifactId>
-            <version>1.0-SNAPSHOT</version>
+            <artifactId>espresso-jetty</artifactId>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>

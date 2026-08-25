@@ -1,4 +1,4 @@
-package io.github.lazyboy81.espresso.core.dto;
+package io.github.lazyboy81.espresso.starter.dto;
 
 import lombok.*;
 

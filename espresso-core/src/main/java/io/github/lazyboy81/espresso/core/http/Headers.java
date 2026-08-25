@@ -30,6 +30,10 @@ public record Headers(Map<String, String> value) {
     }
 
     public boolean hasValue(String name, String value) {
+        if (!this.value.containsKey(name)) {
+            return false;
+        }
+
         return this.value.get(name).contains(value);
     }
 
