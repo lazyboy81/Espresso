@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.github.lazyboy81.espresso.core.binding.Bindings;
 import io.github.lazyboy81.espresso.core.exception.EspressoException;
 import io.github.lazyboy81.espresso.core.handler.Handler;
+import io.github.lazyboy81.espresso.core.handler.ResponseImpl;
 import io.github.lazyboy81.espresso.core.http.Headers;
 import io.github.lazyboy81.espresso.core.http.constants.HttpHeader;
 import io.github.lazyboy81.espresso.core.http.constants.HttpStatus;
@@ -51,11 +52,13 @@ class RequestResponseLogger implements Middleware {
             }
 
             var end = Instant.now();
+
+            var capturedResponse = (ResponseImpl) response;
             var responseLog = new LogBuffer()
                     .endTime(end)
-                    .headers(response.headers())
-                    .status(response.status())
-                    .payload(response.capturedPayload(), response.headers().getHeaderValue(HttpHeader.CONTENT_TYPE.value()));
+                    .headers(capturedResponse.headers())
+                    .status(capturedResponse.status())
+                    .payload(capturedResponse.capturedPayload(), response.headers().getHeaderValue(HttpHeader.CONTENT_TYPE.value()));
             log.info("\n{}", responseLog);
         };
     }

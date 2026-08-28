@@ -3,7 +3,8 @@ package io.github.lazyboy81.espresso.core.middleware;
 import io.github.lazyboy81.espresso.core.engine.ResponseChannel;
 import io.github.lazyboy81.espresso.core.handler.Handler;
 import io.github.lazyboy81.espresso.core.handler.Request;
-import io.github.lazyboy81.espresso.core.handler.Response;
+import io.github.lazyboy81.espresso.core.handler.RequestUtil;
+import io.github.lazyboy81.espresso.core.handler.ResponseImpl;
 import io.github.lazyboy81.espresso.core.http.Headers;
 import io.github.lazyboy81.espresso.core.http.constants.HttpStatus;
 import org.junit.jupiter.api.Test;
@@ -25,7 +26,7 @@ public class RequestIdGeneratorTest {
         Handler decorated = middleware.handle(endpoint);
 
         Request request = createTestRequest(false);
-        Response response = createTestResponse();
+        ResponseImpl response = createTestResponse();
 
         assertThatNoException().isThrownBy(() -> decorated.handle(request, response));
         assertThat(response.headers().getHeaderValue("X-Request-ID")).isNotBlank();
@@ -40,7 +41,7 @@ public class RequestIdGeneratorTest {
         Handler decorated = middleware.handle(endpoint);
 
         Request request = createTestRequest(true);
-        Response response = createTestResponse();
+        ResponseImpl response = createTestResponse();
 
         assertThatNoException().isThrownBy(() -> decorated.handle(request, response));
 
@@ -52,13 +53,13 @@ public class RequestIdGeneratorTest {
         httpFields.put("X-Request-ID", "<sample-request-id>");
         var header = new Headers(sampleHeader ? httpFields : Map.of());
 
-        return Request.RequestBuilder.newBuilder()
+        return RequestUtil.RequestBuilder.newBuilder()
                 .headers(header)
                 .build();
     }
 
-    private Response createTestResponse() {
-        return new Response(new MockResponseChannel(new HashMap<>()));
+    private ResponseImpl createTestResponse() {
+        return new ResponseImpl(new MockResponseChannel(new HashMap<>()));
     }
 
     private record MockResponseChannel(Map<String, String> map) implements ResponseChannel {

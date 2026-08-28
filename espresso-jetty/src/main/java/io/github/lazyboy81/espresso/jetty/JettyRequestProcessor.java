@@ -1,5 +1,7 @@
 package io.github.lazyboy81.espresso.jetty;
 
+import io.github.lazyboy81.espresso.core.handler.RequestUtil;
+import io.github.lazyboy81.espresso.core.handler.ResponseImpl;
 import io.github.lazyboy81.espresso.core.http.FormValues;
 import io.github.lazyboy81.espresso.core.http.Headers;
 import io.github.lazyboy81.espresso.core.http.Query;
@@ -24,7 +26,7 @@ public class JettyRequestProcessor {
 
     public io.github.lazyboy81.espresso.core.handler.Request processRequest(Request request) {
         try {
-            var requestBuilder = io.github.lazyboy81.espresso.core.handler.Request.RequestBuilder.newBuilder();
+            var requestBuilder = RequestUtil.RequestBuilder.newBuilder();
 
             requestBuilder.method(request.getMethod());
             requestBuilder.path(request.getHttpURI().getPath());
@@ -113,8 +115,8 @@ public class JettyRequestProcessor {
         return result;
     }
 
-    public io.github.lazyboy81.espresso.core.handler.Response processResponse(Response response, Callback callback) {
-        return new io.github.lazyboy81.espresso.core.handler.Response(new JettyResponseChannel(response, callback));
+    public ResponseImpl processResponse(Response response, Callback callback) {
+        return new ResponseImpl(new JettyResponseChannel(response, callback));
     }
 
 }

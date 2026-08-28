@@ -7,7 +7,8 @@ import io.github.lazyboy81.espresso.core.config.ListAppender;
 import io.github.lazyboy81.espresso.core.engine.ResponseChannel;
 import io.github.lazyboy81.espresso.core.handler.Handler;
 import io.github.lazyboy81.espresso.core.handler.Request;
-import io.github.lazyboy81.espresso.core.handler.Response;
+import io.github.lazyboy81.espresso.core.handler.RequestUtil;
+import io.github.lazyboy81.espresso.core.handler.ResponseImpl;
 import io.github.lazyboy81.espresso.core.http.Headers;
 import io.github.lazyboy81.espresso.core.http.constants.HttpStatus;
 import org.junit.jupiter.api.*;
@@ -66,7 +67,7 @@ public class RequestResponseLoggerTest {
         Handler decorated = middleware.handle(endpoint);
 
         Request request = createTestRequest();
-        Response response = createTestResponse(200);
+        ResponseImpl response = createTestResponse(200);
 
         assertThatNoException().isThrownBy(() -> decorated.handle(request, response));
 
@@ -96,7 +97,7 @@ public class RequestResponseLoggerTest {
         Handler decorated = middleware.handle(endpoint);
 
         Request request = createTestRequest();
-        Response response = createTestResponse(500); // no need for it here
+        ResponseImpl response = createTestResponse(500); // no need for it here
 
         // because we rethrow the exception
         assertThatThrownBy(() -> decorated.handle(request, response));
@@ -124,7 +125,7 @@ public class RequestResponseLoggerTest {
         httpFields.put("Host", "localhost");
         var header = new Headers(httpFields);
 
-        return Request.RequestBuilder.newBuilder()
+        return RequestUtil.RequestBuilder.newBuilder()
                 .method("GET")
                 .path("/")
                 .headers(header)
@@ -132,8 +133,8 @@ public class RequestResponseLoggerTest {
                 .build();
     }
 
-    private Response createTestResponse(int statusCode) {
-        return new Response(new MockResponseChannel(statusCode));
+    private ResponseImpl createTestResponse(int statusCode) {
+        return new ResponseImpl(new MockResponseChannel(statusCode));
     }
 
     private record MockResponseChannel(int status) implements ResponseChannel {

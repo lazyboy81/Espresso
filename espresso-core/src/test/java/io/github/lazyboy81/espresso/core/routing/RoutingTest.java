@@ -3,6 +3,7 @@ package io.github.lazyboy81.espresso.core.routing;
 import io.github.lazyboy81.espresso.core.exception.AmbiguousPathException;
 import io.github.lazyboy81.espresso.core.exception.PathNotFoundException;
 import io.github.lazyboy81.espresso.core.handler.Handler;
+import io.github.lazyboy81.espresso.core.handler.Response;
 import io.github.lazyboy81.espresso.core.http.constants.HttpMethod;
 import io.github.lazyboy81.espresso.core.middleware.Middleware;
 import org.junit.jupiter.api.Test;
@@ -365,7 +366,7 @@ class RoutingTest {
     private record NamedHandler(String name) implements Handler {
         @Override
         public void handle(io.github.lazyboy81.espresso.core.handler.Request request,
-                           io.github.lazyboy81.espresso.core.handler.Response response) {
+                           Response response) {
             // Deliberately empty: instance identity represents the registered endpoint.
         }
     }

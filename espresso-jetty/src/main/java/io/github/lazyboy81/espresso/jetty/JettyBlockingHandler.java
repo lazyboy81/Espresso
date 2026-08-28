@@ -4,6 +4,7 @@ import io.github.lazyboy81.espresso.core.binding.Bindings;
 import io.github.lazyboy81.espresso.core.binding.dto.TemplateData;
 import io.github.lazyboy81.espresso.core.binding.impl.HtmlRender;
 import io.github.lazyboy81.espresso.core.exception.EspressoException;
+import io.github.lazyboy81.espresso.core.handler.RequestUtil;
 import io.github.lazyboy81.espresso.core.http.constants.HttpMethod;
 import io.github.lazyboy81.espresso.core.routing.RouteMatch;
 import io.github.lazyboy81.espresso.core.routing.RouteResolver;
@@ -37,7 +38,7 @@ public class JettyBlockingHandler extends Handler.Abstract {
 
             RouteMatch resolve = routeResolver.resolve(HttpMethod.fromValue(req.method()), req.path());
 
-            req = req.toBuilder().pathVariables(resolve.pathVariables()).build();
+            req = RequestUtil.toBuilder(req).pathVariables(resolve.pathVariables()).build();
 
             resolve.handler().handle(req, res);
         } catch (Exception e) {

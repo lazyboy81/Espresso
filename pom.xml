@@ -64,6 +64,7 @@
         <org.json.version>20240303</org.json.version>
         <thymeleaf.version>3.1.5.RELEASE</thymeleaf.version>
         <lombok.version>1.18.42</lombok.version>
+        <commons.version>3.18.0</commons.version>
     </properties>
 
     <dependencyManagement>
@@ -135,6 +136,13 @@
                 <artifactId>json-unit-assertj</artifactId>
                 <version>${json-unit-assertj.version}</version>  <!-- (latest as of 2026) -->
                 <scope>test</scope>
+            </dependency>
+            <!-- Source: https://mvnrepository.com/artifact/org.apache.commons/commons-lang3 -->
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-lang3</artifactId>
+                <version>${commons.version}</version>
+                <scope>compile</scope>
             </dependency>
         </dependencies>
     </dependencyManagement>
