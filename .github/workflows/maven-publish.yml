@@ -34,7 +34,7 @@ jobs:
         run: mvn -B test
 
       - name: Publish to GitHub Packages
-        run: mvn -B deploy -Pgithub -DskipTests
+        run: mvn -B deploy -Pdeployment -DskipTests
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
