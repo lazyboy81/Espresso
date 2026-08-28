@@ -13,8 +13,12 @@ Introducing Espresso, a lightweight HTTP library for Java inspired by the [Echo 
 In this project you can create a simple web server in a few lines of code:
 ```java
 void main(String[] args) {
-  Espresso espresso = Espresso.getDefault();
-  espresso.get("/hello", (request, response) -> response.text(HttpStatus.Code.OK, "Hello World!"));
+  Espresso espresso = new Espresso(JettyOptions.defaultOps());
+
+  espresso.get("hello", (request, response) -> {
+    response.text(HttpStatus.OK, "Hello World");
+  });
+
   espresso.start();
 }
 ```
@@ -44,10 +48,13 @@ Alongside these request and response formats, espresso offers some middlewares a
 Registering a middleware is easy as well:
 ```java
 void main(String[] args) {
-  Espresso espresso = Espresso.getDefault();
-  espresso.get("/hello", (request, response) -> response.text(HttpStatus.Code.OK, "Hello World!"));
-
+  Espresso espresso = new Espresso(JettyOptions.defaultOps());
+  
   espresso.use(Middlewares.requestResponseLogger());
+
+  espresso.get("hello", (request, response) -> {
+    response.text(HttpStatus.OK, "Hello World");
+  });
 
   espresso.start();
 }
@@ -56,17 +63,19 @@ void main(String[] args) {
 You can group URLS and create subbranches of routeRegistry, for  example:
 ```java
 void main(String[] args) {
-    Espresso espresso = Espresso.getDefault();
+  Espresso espresso = new Espresso(JettyOptions.defaultOps());
 
-    Router userRoutes = espresso.group("/user");
-    userRoutes.get("/list", (request, response) -> {}); // /users/list
-    userRoutes.use(Middlewares.requestResponseLogger());
+  Router userRoutes = espresso.group("/user");
+  userRoutes.use(Middlewares.requestResponseLogger());
+  userRoutes.get("/list", (request, response) -> {
+  }); // /users/list
 
-    Router orderRoutes = espresso.group("/order");
-    orderRoutes.get("/list", (request, response) -> {}); // /orders/list
-    orderRoutes.use(Middlewares.requestId());
+  Router orderRoutes = espresso.group("/order");
+  orderRoutes.use(Middlewares.requestId());
+  orderRoutes.get("/list", (request, response) -> {
+  }); // /orders/list
 
-    espresso.start();
+  espresso.start();
 }
 ```
 ### Many more...
@@ -85,7 +94,7 @@ Java 21, That's it.
 Add the project dependency to your pom.xml file:
 ```xml
 <dependency>
-  <groupId>com.github.sinakarimi81</groupId>
+  <groupId>io.github.lazyboy81</groupId>
   <artifactId>Espresso</artifactId>
   <version>1.0.0</version>
 </dependency>
@@ -109,7 +118,7 @@ Add the project dependency to your pom.xml file:
 
 >Disclaimer: The source was written mostly by hand but LLM assistance was used. It is okay to use LLMs and AI agents
 > for contribution to this project. Please try to avoid spamming the issues section and if you have used an LLM, provide the model name and
-> a good description of the problem and you solution for it.
+> a good description of the problem and your solution for it.
 
 ## License
 
