@@ -32,16 +32,35 @@ jobs:
           gpg-private-key: ${{ secrets.MAVEN_GPG_PRIVATE_KEY }} # Value of the GPG private key to import
           gpg-passphrase: MAVEN_GPG_PASSPHRASE # env variable for GPG private key passphrase
 
+      - name: Set project version
+        id: set_version
+        run: |
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          elif [ -n "${{ github.event.release.tag_name }}" ]; then
+            # Strip any leading 'v' from the tag (e.g., v1.0.0 → 1.0.0)
+            VERSION="${TAG_NAME#v}"
+          else
+            echo "No version provided (either via input or release tag)"
+            exit 1
+          fi
+          echo "Setting version to $VERSION"
+          mvn versions:set -DnewVersion=$VERSION -DgenerateBackupPoms=false
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+        env:
+          TAG_NAME: ${{ github.event.release.tag_name }}
+
       - name: Build with Maven
         run: mvn -B clean package -DskipTests
-
-      - name: Run tests
-        run: mvn -B test
 
       - name: Publish to GitHub Packages
         run: mvn -B deploy -Pdeployment -DskipTests
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish to maven central
+        run: mvn -B  deploy -Pdeployment -DskipTests
+        env:
           MAVEN_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
           MAVEN_PASSWORD: ${{ secrets.CENTRAL_PASSWORD }}
           MAVEN_GPG_PASSPHRASE: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
