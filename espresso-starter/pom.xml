@@ -9,6 +9,7 @@
         <version>1.0-SNAPSHOT</version>
     </parent>
 
+    <name>Espresso starter module</name>
     <artifactId>espresso-starter</artifactId>
 
     <properties>

@@ -9,6 +9,7 @@
         <version>1.0-SNAPSHOT</version>
     </parent>
 
+    <name>Espresso Jetty module</name>
     <artifactId>espresso-jetty</artifactId>
 
     <properties>
@@ -25,7 +26,7 @@
         <dependency>
             <groupId>io.github.lazyboy81</groupId>
             <artifactId>espresso-core</artifactId>
-            <version>1.0-SNAPSHOT</version>
+            <version>${parent.version}</version>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>

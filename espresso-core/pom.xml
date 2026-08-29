@@ -9,6 +9,7 @@
         <version>1.0-SNAPSHOT</version>
     </parent>
 
+    <name>Espresso core module</name>
     <artifactId>espresso-core</artifactId>
 
     <properties>
