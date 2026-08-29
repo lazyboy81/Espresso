@@ -95,7 +95,7 @@ Add the project dependency to your pom.xml file:
 ```xml
 <dependency>
   <groupId>io.github.lazyboy81</groupId>
-  <artifactId>Espresso</artifactId>
+  <artifactId>espresso-starter</artifactId>
   <version>1.0.0</version>
 </dependency>
 ```
