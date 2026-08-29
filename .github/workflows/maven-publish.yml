@@ -29,6 +29,8 @@ jobs:
           server-id: central                # MUST match <publishingServerId> in your POM
           server-username: MAVEN_USERNAME   # Name of the env var for the username
           server-password: MAVEN_PASSWORD   # Name of the env var for the password
+          gpg-private-key: ${{ secrets.MAVEN_GPG_PRIVATE_KEY }} # Value of the GPG private key to import
+          gpg-passphrase: MAVEN_GPG_PASSPHRASE # env variable for GPG private key passphrase
 
       - name: Build with Maven
         run: mvn -B clean package -DskipTests
@@ -42,6 +44,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           MAVEN_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
           MAVEN_PASSWORD: ${{ secrets.CENTRAL_PASSWORD }}
+          MAVEN_GPG_PASSPHRASE: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
